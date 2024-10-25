@@ -1,7 +1,13 @@
 # transfromers version 4.38.2
 # this example is tested with 4 RTX3090s, 24GB memory each
+# Edit 1.0
 import warnings
+import argparse
 warnings.filterwarnings("ignore")
+
+parser = argparse.ArgumentParser(description="Load a transformer model with a specified auth token.")
+parser.add_argument("--auth_token", type=str, required=True, help="Hugging Face authentication token")
+args = parser.parse_args()
 
 import torch 
 import json
@@ -18,19 +24,24 @@ use_flash = True
 
 # model_lists = ['google/gemma-7b-it', 'meta-llama/Llama-2-7b-chat-hf', 'mistralai/Mistral-7B-Instruct-v0.1', ]
 model_lists = ['meta-llama/Llama-2-7b-chat-hf']
+auth_token = args.auth_token
 
 
 for model_name in model_lists:
+    print("Start loading model ",model_name)
     if 'Mistral' in model_name:
         # Disable Mistral's sliding window
         config = AutoConfig.from_pretrained(model_name)
         config.sliding_window = None
         model = AutoModelForCausalLM.from_pretrained(model_name, config=config, device_map="auto", torch_dtype=torch.bfloat16, use_flash_attention_2=use_flash)
     else:
-        model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype=torch.bfloat16, use_flash_attention_2=use_flash)
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2", use_auth_token=auth_token).cuda()
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    print("Model loaded")
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
+    print("Tokenizer loaded")
     model.eval()
+    print("Finished loading")
     file_name = "passkey_examples.jsonl"
 
     print("=========="*2 + "**Original**" + "=========="*2)
@@ -38,7 +49,7 @@ for model_name in model_lists:
         example = json.loads(line)
         prompt_postfix = "What is the pass key? The pass key is "
         prompt = example["input"] + prompt_postfix
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
         print( "-----------------------------------" )
         print( f"#Tokens of Prompt:", input_ids.shape[1], end=" " )
         print( "Passkey target:", example["target"] )
@@ -60,7 +71,7 @@ for model_name in model_lists:
         example = json.loads(line)
         prompt_postfix = "What is the pass key? The pass key is "
         prompt = example["input"] + prompt_postfix
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
         print( f"#Tokens of Prompt:", input_ids.shape[1], end=" " )
         print( "Passkey target:", example["target"] )
 
@@ -82,7 +93,7 @@ for model_name in model_lists:
         example = json.loads(line)
         prompt_postfix = "What is the pass key? The pass key is "
         prompt = example["input"] + prompt_postfix
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
         print( f"#Tokens of Prompt:", input_ids.shape[1], end=" " )
         print( "Passkey target:", example["target"] )
 
@@ -114,7 +125,7 @@ for model_name in model_lists:
         example = json.loads(line)
         prompt_postfix = "What is the pass key? The pass key is "
         prompt = example["input"] + prompt_postfix
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
         print( f"#Tokens of Prompt:", input_ids.shape[1], end=" " )
         print( "Passkey target:", example["target"] )
 

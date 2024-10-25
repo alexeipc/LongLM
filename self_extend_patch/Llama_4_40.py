@@ -8,8 +8,6 @@ from transformers.cache_utils import Cache
 from flash_attn import flash_attn_func, flash_attn_varlen_func
 from .selfextend_flash_attn import self_extend_flash_forward 
 
-
-
 def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     """
     This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,

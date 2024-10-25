@@ -126,16 +126,16 @@ def self_extend_forward(
 
 
 
-    neighbor_q_cos, neighbor_q_sin = self.rotary_emb(value_states, query_position, seq_len=None)
-    neighbor_k_cos, neighbor_k_sin = self.rotary_emb(value_states, key_position, seq_len=None)
+    neighbor_q_cos, neighbor_q_sin = self.rotary_emb(value_states, query_position)
+    neighbor_k_cos, neighbor_k_sin = self.rotary_emb(value_states, key_position)
 
 
     _re_group_size_2 = 0 if query_position.max() < group_size_2 else group_size_2 # in case that, the smallest q position, g2-g2//g1 exceed the max position
     group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 / group_size_1
     group_key_position = key_position // group_size_1
 
-    group_q_cos, group_q_sin = self.rotary_emb(value_states, group_query_position, seq_len=None)
-    group_k_cos, group_k_sin = self.rotary_emb(value_states, group_key_position, seq_len=None)
+    group_q_cos, group_q_sin = self.rotary_emb(value_states, group_query_position)
+    group_k_cos, group_k_sin = self.rotary_emb(value_states, group_key_position)
 
 
 
@@ -270,7 +270,7 @@ def flash_self_extend_forward(
         group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
         decode_key_position = torch.cat([group_key_position[:, :-group_size_2], neighbor_key_position[:,-group_size_2:]], dim=1)
         
-        decode_k_cos, decode_k_sin = self.rotary_emb(value_states, decode_key_position, seq_len=None)
+        decode_k_cos, decode_k_sin = self.rotary_emb(value_states, decode_key_position)
         #import pdb; pdb.set_trace()
         #neighbor_query_states, _ = apply_rotary_pos_emb(scaled_query, None, cos, sin, query_position_ids) 
         decode_query_states = scaled_query.transpose(1,2).contiguous() # position 0: cos 0 = 1, sin 0 = 0
@@ -287,15 +287,15 @@ def flash_self_extend_forward(
                                       causal=True)
     elif q_len == kv_seq_len:
         # set correct position_ids & apply RoPE.
-        neighbor_q_cos, neighbor_q_sin = self.rotary_emb(value_states, query_position, seq_len=None)
-        neighbor_k_cos, neighbor_k_sin = self.rotary_emb(value_states, key_position, seq_len=None)
+        neighbor_q_cos, neighbor_q_sin = self.rotary_emb(value_states, query_position)
+        neighbor_k_cos, neighbor_k_sin = self.rotary_emb(value_states, key_position)
 
         _re_group_size_2 = 0 if query_position.max() < group_size_2 else group_size_2 # in case that, the smallest q position, g2-g2//g1 exceed the max position
         group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 / group_size_1
         group_key_position = key_position // group_size_1
 
-        group_q_cos, group_q_sin = self.rotary_emb(value_states, group_query_position, seq_len=None)
-        group_k_cos, group_k_sin = self.rotary_emb(value_states, group_key_position, seq_len=None)
+        group_q_cos, group_q_sin = self.rotary_emb(value_states, group_query_position)
+        group_k_cos, group_k_sin = self.rotary_emb(value_states, group_key_position)
 
         neighbor_query_states, _ = apply_rotary_pos_emb(scaled_query, None, neighbor_q_cos, neighbor_q_sin, None)
         _, neighbor_key_states = apply_rotary_pos_emb(None, key_states, neighbor_k_cos, neighbor_k_sin, None)
@@ -395,15 +395,15 @@ def flash_self_extend_forward_triton(
 
 
     # set correct position_ids & apply RoPE.
-    neighbor_q_cos, neighbor_q_sin = self.rotary_emb(value_states, query_position, seq_len=None)
-    neighbor_k_cos, neighbor_k_sin = self.rotary_emb(value_states, key_position, seq_len=None)
+    neighbor_q_cos, neighbor_q_sin = self.rotary_emb(value_states, query_position)
+    neighbor_k_cos, neighbor_k_sin = self.rotary_emb(value_states, key_position)
 
     _re_group_size_2 = 0 if query_position.max() < group_size_2 else group_size_2 # in case that, the smallest q position, g2-g2//g1 exceed the max position
     group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 / group_size_1
     group_key_position = key_position // group_size_1
 
-    group_q_cos, group_q_sin = self.rotary_emb(value_states, group_query_position, seq_len=None)
-    group_k_cos, group_k_sin = self.rotary_emb(value_states, group_key_position, seq_len=None)
+    group_q_cos, group_q_sin = self.rotary_emb(value_states, group_query_position)
+    group_k_cos, group_k_sin = self.rotary_emb(value_states, group_key_position)
 
     neighbor_query_states, _ = apply_rotary_pos_emb(scaled_query, None, neighbor_q_cos, neighbor_q_sin, None)
     _, neighbor_key_states = apply_rotary_pos_emb(None, key_states, neighbor_k_cos, neighbor_k_sin, None)
