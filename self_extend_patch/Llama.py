@@ -297,7 +297,7 @@ def flash_self_extend_forward(
 
         # TODO: Change this grouping method
         
-        print("Query position:",query_position)
+        '''print("Query position:",query_position)
         print(query_position.shape)
         print("Key position:",query_position)
         print(key_position.shape)
@@ -306,7 +306,7 @@ def flash_self_extend_forward(
         print("Group query position:",group_query_position)
         print(group_query_position.shape)
         print("Group key position:",group_query_position)
-        print(group_key_position.shape)
+        print(group_key_position.shape)'''
         
         # Query's number of token = Key's number of token
 

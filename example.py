@@ -101,7 +101,9 @@ for model_name in model_lists:
         input_ids = tokenizer(context + input, return_tensors="pt").input_ids.cuda()
         tokens = model.generate(input_ids, max_new_tokens=len(data["answers"][0]))
         answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
-        print(answer)
+        print( "-----------------------------------\n" )
+        print("answer:    " + answer)
+        print( "-----------------------------------\n" )
 
 
 
