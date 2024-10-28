@@ -90,15 +90,15 @@ for model_name in model_lists:
     for dataset in datasets:
         data = load_dataset('THUDM/LongBench', dataset, split='test')
 
-        print(data['context'])
-        print(data['input'])
+        #print(data['context'])
+        #print(data['input'])
 
         context = data['context'][0]
         input = data['input'][0]
 
         print('The prompt: ' + context + input)
 
-        input_ids = tokenizer(context + input, return_tensors="pt", padding=True, truncation=True, pad_token=' ').input_ids.cuda()
+        input_ids = tokenizer(context + input, return_tensors="pt").input_ids.cuda()
         tokens = model.generate(input_ids, max_new_tokens=len(data["answers"][0]))
         answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
         print(answer)
