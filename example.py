@@ -89,7 +89,7 @@ for model_name in model_lists:
     datasets = ["qasper"]
     for dataset in datasets:
         data = load_dataset('THUDM/LongBench', dataset, split='test')
-        input_ids = tokenizer(data['context'] + data["input"], return_tensors="pt").input_ids.cuda()
+        input_ids = tokenizer(data['context'] + data["input"], return_tensors="pt", padding=True, truncation=True).input_ids.cuda()
         tokens = model.generate(input_ids, max_new_tokens=len(data["answers"]))
         answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
         print(answer)
