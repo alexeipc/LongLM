@@ -84,6 +84,7 @@ def flash_attention2_forward_with_window_size(
     else:
         return attn_output
 
+# TODO change the attention method
 def self_extend_flash_forward(
         model_self,
         query_position,
@@ -99,6 +100,22 @@ def self_extend_flash_forward(
         kv_seq_len,
         attn_dropout,
     ):
+    """
+        Args:
+            model_self: The model considered
+            query_position: Indicate the position of the query
+            group_size_2: window size
+            neighbor_query_states: Query for neighbor tokens
+            neighbor_key_states: Key for neighbor tokens
+            group_query_states: 
+            group_key_states:
+            value_states:
+            attention_mask:
+            bsz:
+            q_len:
+            kv_seq_len:
+            attn_dropout:
+    """
     
     if query_position.max() >= group_size_2:
         neighbor_attn_output, neighbor_softmax_lse_right_padded, neighbor_prob = model_self._flash_attention_forward(

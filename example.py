@@ -87,7 +87,7 @@ for model_name in model_lists:
 
 
 
-    print("=========="*2 + "**SelfExtend using triton**" + "=========="*2)
+    '''print("=========="*2 + "**SelfExtend using triton**" + "=========="*2)
     SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="triton") ## flash_attention_impl="triton" or "flash_attn"
     for line in open(file_name, "r"):
         example = json.loads(line)
@@ -106,7 +106,6 @@ for model_name in model_lists:
         print( answer )
         print( f"Runing Time: {end_time - start_time:.2f} sec" )
         print( "-----------------------------------\n" )
-
 
 
     print("=========="*2 + "**SelfExtend using Torch**" + "=========="*2)
@@ -138,3 +137,4 @@ for model_name in model_lists:
         print( answer )
         print( f"Runing Time: {end_time - start_time:.2f} sec" )
         print( "-----------------------------------\n" )
+    '''

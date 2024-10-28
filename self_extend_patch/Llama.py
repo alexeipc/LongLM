@@ -207,6 +207,7 @@ def self_extend_forward(
 
     return attn_output, attn_weights, past_key_value
 
+# TODO change the attention method - Phat
 def flash_self_extend_forward(
     self,
     hidden_states: torch.Tensor,
@@ -215,8 +216,8 @@ def flash_self_extend_forward(
     past_key_value: Optional[Cache] = None,
     output_attentions: bool = False,
     use_cache: bool = False,
-    group_size_1: Optional[float] = 8,
-    group_size_2: Optional[float] = 1024,
+    group_size_1: Optional[float] = 8,              # Group size
+    group_size_2: Optional[float] = 1024,           # Window size
     scale_base: Optional[int] = -1,
     cache_position: Optional[torch.LongTensor] = None,
     **kwargs,
@@ -234,6 +235,8 @@ def flash_self_extend_forward(
         )
         attention_mask = kwargs.pop("padding_mask")
 
+    # bsz is batch size
+    # q_len is query size
     bsz, q_len, _ = hidden_states.size()
 
     query_states = self.q_proj(hidden_states)
@@ -291,8 +294,21 @@ def flash_self_extend_forward(
         neighbor_k_cos, neighbor_k_sin = self.rotary_emb(value_states, key_position)
 
         _re_group_size_2 = 0 if query_position.max() < group_size_2 else group_size_2 # in case that, the smallest q position, g2-g2//g1 exceed the max position
+
+        # TODO: Change this grouping method
+        
+        print("Query position:",query_position)
+        print(query_position.shape)
+        print("Key position:",query_position)
+        print(key_position.shape)
         group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 / group_size_1
         group_key_position = key_position // group_size_1
+        print("Group query position:",group_query_position)
+        print(group_query_position.shape)
+        print("Group key position:",group_query_position)
+        print(group_key_position.shape)
+        
+        # Query's number of token = Key's number of token
 
         group_q_cos, group_q_sin = self.rotary_emb(value_states, group_query_position)
         group_k_cos, group_k_sin = self.rotary_emb(value_states, group_key_position)
