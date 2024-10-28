@@ -118,6 +118,7 @@ def self_extend_flash_forward(
     """
     
     if query_position.max() >= group_size_2:
+        # Keep the difference the same 
         neighbor_attn_output, neighbor_softmax_lse_right_padded, neighbor_prob = model_self._flash_attention_forward(
             neighbor_query_states,
             neighbor_key_states,

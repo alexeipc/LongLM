@@ -10,6 +10,7 @@ from transformers.cache_utils import Cache
 from flash_attn import flash_attn_func, flash_attn_varlen_func
 from .selfextend_flash_attn import self_extend_flash_forward
 from .selfextend_flash_attn_triton import self_extend_flash_forward_triton
+from .attn_method import generate_sequentially_grouping_position
 
 
 
@@ -293,19 +294,22 @@ def flash_self_extend_forward(
         neighbor_q_cos, neighbor_q_sin = self.rotary_emb(value_states, query_position)
         neighbor_k_cos, neighbor_k_sin = self.rotary_emb(value_states, key_position)
 
+        # If window size > query size then do nothing else change it
         _re_group_size_2 = 0 if query_position.max() < group_size_2 else group_size_2 # in case that, the smallest q position, g2-g2//g1 exceed the max position
-
         # TODO: Change this grouping method
+        
+        #group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 // group_size_1
+        #group_key_position = key_position // group_size_1
+        
+        group_query_position, group_key_position = generate_sequentially_grouping_position(query_position.shape[1], group_size_2)
         
         print("Query position:",query_position)
         print(query_position.shape)
-        print("Key position:",query_position)
+        print("Key position:",key_position)
         print(key_position.shape)
-        group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 / group_size_1
-        group_key_position = key_position // group_size_1
         print("Group query position:",group_query_position)
         print(group_query_position.shape)
-        print("Group key position:",group_query_position)
+        print("Group key position:",group_key_position)
         print(group_key_position.shape)
         
         # Query's number of token = Key's number of token

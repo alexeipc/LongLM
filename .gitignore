@@ -1,5 +1,7 @@
 *.pyc
+*.pyc.*
 .DS_Store
+*.cpython
 .env
 *.o
 *.slurm
