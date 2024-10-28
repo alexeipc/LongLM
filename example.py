@@ -19,7 +19,7 @@ import SelfExtend
 
 
 window_size = 1024
-group_size = 32
+group_size = 1
 use_flash = True
 
 # model_lists = ['google/gemma-7b-it', 'meta-llama/Llama-2-7b-chat-hf', 'mistralai/Mistral-7B-Instruct-v0.1', ]
