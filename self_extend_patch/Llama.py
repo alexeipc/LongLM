@@ -300,10 +300,10 @@ def flash_self_extend_forward(
         '''print("Query position:",query_position)
         print(query_position.shape)
         print("Key position:",query_position)
-        print(key_position.shape)
+        print(key_position.shape)'''
         group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 / group_size_1
         group_key_position = key_position // group_size_1
-        print("Group query position:",group_query_position)
+        '''print("Group query position:",group_query_position)
         print(group_query_position.shape)
         print("Group key position:",group_query_position)
         print(group_key_position.shape)'''
