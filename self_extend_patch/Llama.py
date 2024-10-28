@@ -214,9 +214,9 @@ def flash_self_extend_forward(
     attention_mask: Optional[torch.Tensor] = None,
     position_ids: Optional[torch.LongTensor] = None,
     past_key_value: Optional[Cache] = None,
-    output_attentions: bool = False,
+    output_attentions: bool = True,
     use_cache: bool = False,
-    group_size_1: Optional[float] = 800,              # Group size
+    group_size_1: Optional[float] = 4,              # Group size
     group_size_2: Optional[float] = 1024,           # Window size
     scale_base: Optional[int] = -1,
     cache_position: Optional[torch.LongTensor] = None,
