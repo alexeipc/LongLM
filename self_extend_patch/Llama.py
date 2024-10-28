@@ -10,7 +10,7 @@ from transformers.cache_utils import Cache
 from flash_attn import flash_attn_func, flash_attn_varlen_func
 from .selfextend_flash_attn import self_extend_flash_forward
 from .selfextend_flash_attn_triton import self_extend_flash_forward_triton
-from .attn_method import generate_sequentially_grouping_position
+from .attn_method import generate_sequentially_grouping_position, generate_exponentially_grouping_position
 
 
 
@@ -301,16 +301,16 @@ def flash_self_extend_forward(
         #group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 // group_size_1
         #group_key_position = key_position // group_size_1
         
-        group_query_position, group_key_position = generate_sequentially_grouping_position(query_position.shape[1], group_size_2)
+        group_query_position, group_key_position = generate_exponentially_grouping_position(query_position.shape[1], group_size_2)
         
-        print("Query position:",query_position)
+        '''print("Query position:",query_position)
         print(query_position.shape)
         print("Key position:",key_position)
         print(key_position.shape)
         print("Group query position:",group_query_position)
         print(group_query_position.shape)
         print("Group key position:",group_key_position)
-        print(group_key_position.shape)
+        print(group_key_position.shape)'''
         
         # Query's number of token = Key's number of token
 
