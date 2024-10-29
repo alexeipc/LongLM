@@ -5,3 +5,4 @@
 .env
 *.o
 *.slurm
+long_bench_results.json
