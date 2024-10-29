@@ -87,31 +87,6 @@ for model_name in model_lists:
         print( f"Runing Time: {end_time - start_time:.2f} sec" )
         print( "-----------------------------------\n" )
 
-    datasets = ["qasper"]
-    long_bench_result = []
-    for dataset in datasets:
-        data = load_dataset('THUDM/LongBench', dataset, split='test')
-
-        for i in range(len(data['context'])):
-            context = data['context'][i]
-            input_text = data['input'][i]
-
-            prompt = f"{context}\nGive a short answer for this question: {input_text}"
-            
-            input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
-            tokens = model.generate(input_ids, max_new_tokens=max(len(data["answers"][i][0]), 20))
-            answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
-
-            # Append results to the list
-            long_bench_result.append({
-                "prompt": input_text,
-                "expected_answer": data["answers"][i][0],
-                "model_answer": answer
-            })
-    
-    with open("long_bench_results.json", "w") as outfile:
-        json.dump(long_bench_result, outfile, indent=4)
-
     '''print("=========="*2 + "**SelfExtend using triton**" + "=========="*2)
     SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="triton") ## flash_attention_impl="triton" or "flash_attn"
     for line in open(file_name, "r"):
