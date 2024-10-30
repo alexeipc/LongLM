@@ -6,3 +6,4 @@
 *.o
 *.slurm
 long_bench_results.json
+test.py
