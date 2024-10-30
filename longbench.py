@@ -68,6 +68,10 @@ def qa_f1_score(prediction, ground_truth, **kwargs):
     ground_truth_tokens = normalized_ground_truth.split()
     return f1_score(prediction_tokens, ground_truth_tokens)
 
+def gen_prompt(context, input):
+        return f"Article: {context}\n\n Answer the question based on the above article as concisely as you can, using a single phrase or sentence if possible.If the question is a yes/no question, answer \"yes\", \"no\"\n\nQuestion: {input}\n\nAnswer:",
+
+
 for model_name in model_lists:
     print("Start loading model ",model_name)
     if 'Mistral' in model_name:
@@ -115,26 +119,30 @@ for model_name in model_lists:
         print("---------------------------------\n")
 
         total_score = 0
-        expected_score = len(data['context'])
+        expected_score = 0
         
         for i in range(len(data['context'])):
         #for i in range(4,10):
+            expected_score += 1
             context = data['context'][i]
             input_text = data['input'][i]
-            expected_answer = data["answers"][i][0]
+            expected_answers = data["answers"][i]
 
-            prompt = f"{context}\nGive a short answer for this question: {input_text}"
+            prompt = gen_prompt(context, input_text)
             
             input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
-            tokens = model.generate(input_ids, max_new_tokens=max(len(expected_answer), 100))
+            tokens = model.generate(input_ids, max_new_tokens=128)
             answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
             
-            score = qa_f1_score(answer, data["answers"][i][0])
+            score = 0
+            for expected_answer in expected_answers:
+                score = max(score, qa_f1_score(answer, expected_answer))
             
             total_score += score
 
-            print(f"Expected answer: {expected_answer}")
+            print(f"Expected answer: {expected_answers}")
             print(f"Model's answer: {answer}")
             print(f"Score: {score}")
-            
+        
+        print(total_score)
         print(f"Total score: {total_score/expected_score * 100}")
