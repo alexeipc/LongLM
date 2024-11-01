@@ -10,7 +10,7 @@ from transformers.cache_utils import Cache
 from flash_attn import flash_attn_func, flash_attn_varlen_func
 from .selfextend_flash_attn import self_extend_flash_forward
 from .selfextend_flash_attn_triton import self_extend_flash_forward_triton
-from .attn_method import generate_sequentially_grouping_position, generate_exponentially_grouping_position
+from .attn_method import generate_sequentially_grouping_position, generate_exponentially_grouping_position, generate_logistically_grouping_position
 
 
 
@@ -271,7 +271,13 @@ def flash_self_extend_forward(
 
         neighbor_key_position = position_ids[:, -1] - key_position
         _re_group_size_2 = 0 if position_ids.max() < group_size_2 else group_size_2
+    
+        #group_query_position, group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2)
+        #group_key_position = group_query_position.flip(dims=[1])
+        #group_key_position = group_key_position.max() + group_key_position.min() - group_key_position
         group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
+        #print(group_key_position)
+        
         decode_key_position = torch.cat([group_key_position[:, :-group_size_2], neighbor_key_position[:,-group_size_2:]], dim=1)
         
         decode_k_cos, decode_k_sin = self.rotary_emb(value_states, decode_key_position)
@@ -301,7 +307,7 @@ def flash_self_extend_forward(
         #group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 // group_size_1
         #group_key_position = key_position // group_size_1
         
-        group_query_position, group_key_position = generate_sequentially_grouping_position(query_position.shape[1], group_size_2)
+        group_query_position, group_key_position = generate_logistically_grouping_position(query_position.shape[1], group_size_2)
         
         '''print("Query position:",query_position)
         print(query_position.shape)

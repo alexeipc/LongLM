@@ -132,7 +132,7 @@ def qa_f1_score(prediction, ground_truth, type):
 
     prediction_tokens = normalized_prediction.split()
     ground_truth_tokens = normalized_ground_truth.split()
-    return eval(prediction_tokens, ground_truth_tokens, type)
+    return f1_score(prediction_tokens, ground_truth_tokens)
 
 def gen_prompt(context, input):
         prompt = f"Article: {context}\n\n Answer the question based on the above article as concisely as you can, using a single list or word if possible. If the question cannot be answered based on the information in the article, write \"unanswerable\". Do not provide any explanation.\n\nQuestion: {input}\n\nAnswer:"
