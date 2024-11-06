@@ -45,7 +45,7 @@ def generate_exponentially_grouping_position(q_max, window_size, base=2):
 
     return group_query_position, group_key_position
 
-def generate_logistically_grouping_position(q_max, window_size, rate=0.2, capacity=32, device="cuda"):
+def generate_logistically_grouping_position(q_max, window_size, rate=0.01, capacity=32, device="cuda"):
     def logistic_func(rate, capacity, t):
         try:
             numerator = capacity * math.exp(rate * t)

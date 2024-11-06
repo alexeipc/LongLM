@@ -307,7 +307,8 @@ def flash_self_extend_forward(
         #group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 // group_size_1
         #group_key_position = key_position // group_size_1
         
-        group_query_position, group_key_position = generate_logistically_grouping_position(query_position.shape[1], group_size_2)
+        device = value_states.device
+        group_query_position, group_key_position = generate_logistically_grouping_position(query_position.shape[1], group_size_2, device=device)
         
         '''print("Query position:",query_position)
         print(query_position.shape)

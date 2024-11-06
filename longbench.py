@@ -8,12 +8,14 @@ from collections import Counter
 import warnings
 import argparse
 from datasets import load_dataset
+import torch
 
 warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(description="Load a transformer model with a specified auth token.")
 parser.add_argument("--auth_token", type=str, required=True, help="Hugging Face authentication token")
 args = parser.parse_args()
+torch.cuda.memory_summary()
 
 import torch 
 import json
@@ -60,72 +62,6 @@ def f1_score(prediction, ground_truth, **kwargs):
     f1 = (2 * precision * recall) / (precision + recall)
     return f1
 
-def eval(pred, answer, type):
-    def yes_no_type():
-            pred_lower = [token.lower() for token in pred]
-            answer_lower = [token.lower() for token in answer]
-            
-            # Check for presence of "yes", "no", or consider it unanswerable
-            if "yes" in pred_lower:
-                pred_main = "yes"
-            elif "no" in pred_lower:
-                pred_main = "no"
-            else:
-                pred_main = "unanswerable"
-            
-            if "yes" in answer_lower:
-                answer_main = "yes"
-            elif "no" in answer_lower:
-                answer_main = "no"
-            else:
-                answer_main = "unanswerable"
-            
-            # Convert to binary for F1 calculation
-            pred_binary = 1 if pred_main == "yes" else (0 if pred_main == "no" else -1)
-            answer_binary = 1 if answer_main == "yes" else (0 if answer_main == "no" else -1)
-            
-            return 1 if pred_binary == answer_binary else 0
-
-    def list_type():
-            # Extract unique items in both pred and answer
-            common = Counter(pred) & Counter(answer)
-            num_same = sum(common.values())
-            #print(num_same,len(answer))
-            # F1 score calculation for sets
-            return num_same/len(answer)
-
-    def other_type():
-            # Assume F1 score calculation on tokenized text for other types
-            return f1_score(pred, answer)
-
-    if (type == 'yes_no'):
-            return yes_no_type()
-    elif (type == 'list'):
-        return list_type()
-    else:
-        return other_type()
-
-def classify_question_type(question):
-    # Define keywords for classification, including multi-word starters
-    yes_no_starters = {"is", "are", "do", "does", "was", "were", "did"}
-    list_starters = {"what", "which", "on which", "how many", "in what"}
-    
-    # Convert the question to lowercase and strip leading/trailing whitespace
-    question = question.strip().lower()
-    
-    # Check if the question starts with any of the multi-word or single-word starters
-    for starter in list_starters:
-        if question.startswith(starter):
-            return "list"
-    
-    for starter in yes_no_starters:
-        if question.startswith(starter):
-            return "yes_no"
-    
-    # Default to "other" if no match is found
-    return "other"
-
-
 def qa_f1_score(prediction, ground_truth, type):
     normalized_prediction = normalize_answer(prediction)
     normalized_ground_truth = normalize_answer(ground_truth)
@@ -134,10 +70,20 @@ def qa_f1_score(prediction, ground_truth, type):
     ground_truth_tokens = normalized_ground_truth.split()
     return f1_score(prediction_tokens, ground_truth_tokens)
 
-def gen_prompt(context, input):
-        prompt = f"Article: {context}\n\n Answer the question based on the above article as concisely as you can, using a single list or word if possible. If the question cannot be answered based on the information in the article, write \"unanswerable\". Do not provide any explanation.\n\nQuestion: {input}\n\nAnswer:"
-        prompt = f"[INST]{prompt}[/INST]"
-        return prompt
+
+
+def gen_prompt(context, input, test_name):
+    prompts = {
+        "qasper": f"Article: {context}\n\n Answer the question based on the above article as concisely as you can, using a single list or word if possible. If the question cannot be answered based on the information in the article, write \"unanswerable\". Do not provide any explanation.\n\nQuestion: {input}\n\nAnswer:",
+        "narrativeqa": f"Story: {context}\n\n Now, answer the question based on the story as concisely as you can, using a single phrase if possible. Do not provide any explanation.\n\nQuestion: {input}\n\nAnswer:",
+        "multifieldqa_en": f"Read the following text and answer briefly.\n\n{context}\n\nNow, answer the following question based on the above text, only give me the answer and do not output any other words.\n\nQuestion: {input}\nAnswer:",
+        "hotpotqa": f"{context}\n\nAnswer the question based on the given passages. Only give me the answer and do not output any other words.\n\nQuestion: {input}\nAnswer:",
+        "2wikimqa": f"{context}\n\nAnswer the question based on the given passages. Only give me the answer and do not output any other words.\n\nQuestion: {input}\nAnswer:",
+        "musique": f"The following are given passages.\n{context}\n\nAnswer the question based on the given passages. Only give me the answer and do not output any other words.\n\nQuestion: {input}\nAnswer:",
+    }
+    prompt = prompts[test_name]
+    prompt = f"[INST]{prompt}[/INST]"
+    return prompt
 
 for model_name in model_lists:
     print("Start loading model ",model_name)
@@ -147,7 +93,7 @@ for model_name in model_lists:
         config.sliding_window = None
         model = AutoModelForCausalLM.from_pretrained(model_name, config=config, device_map="auto", torch_dtype=torch.bfloat16, use_flash_attention_2=use_flash)
     else:
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2", use_auth_token=auth_token).cuda()
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2", device_map="auto", use_auth_token=auth_token)
 
     print("Model loaded")
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
@@ -158,11 +104,12 @@ for model_name in model_lists:
     
     print("=========="*2 + "**SelfExtend using flash_attn**" + "=========="*2)
     SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
+    # model = model.cuda()
     for line in open(file_name, "r"):
         example = json.loads(line)
         prompt_postfix = "What is the pass key? The pass key is "
         prompt = example["input"] + prompt_postfix
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
         print( f"#Tokens of Prompt:", input_ids.shape[1], end=" " )
         print( "Passkey target:", example["target"] )
 
@@ -178,7 +125,10 @@ for model_name in model_lists:
         break;
     
     datasets = ["qasper"]
+    results_json = []
+    
     for dataset in datasets:
+        torch.cuda.empty_cache()
         data = load_dataset('THUDM/LongBench', dataset, split='test')
         
         print("---------------------------------\n")
@@ -188,18 +138,22 @@ for model_name in model_lists:
         total_score = 0
         expected_score = 0
         
+        result = []
+        
         for i in range(len(data['context'])):
         #for i in range(4,10):
             expected_score += 1
             context = data['context'][i]
             input_text = data['input'][i]
-            question_type = classify_question_type(input_text)
+            question_type = "na"
             expected_answers = data["answers"][i]
 
-            prompt = gen_prompt(context, input_text)
+            prompt = gen_prompt(context, input_text, dataset)
             
             input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
-            tokens = model.generate(input_ids, max_new_tokens=128)
+            with torch.no_grad():
+                print(input_ids.shape)
+                tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
             answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
             
             score = 0
@@ -208,10 +162,26 @@ for model_name in model_lists:
             
             total_score += score
 
-            print(f"Expected answer: {expected_answers}")
+            '''print(f"Expected answer: {expected_answers}")
             print(f"{input_text} type: {question_type}")
             print(f"Model's answer: {answer}")
-            print(f"Score: {score}")
+            print(f"Score: {score}")'''
+            
+            result.append({
+                "expected_answers": expected_answers,
+                "model_answer": answer,
+                "score": score
+            })
         
-        print(total_score)
         print(f"Total score: {total_score/expected_score * 100}")
+        
+        results_json.append({
+            "test_name": dataset,
+            "score": (total_score/expected_score * 100),
+            "details": result 
+        })
+    
+    with open(f'result-{model_name.replace("/","-")}-03.json', 'w') as json_file:
+        json.dump(results_json, json_file, indent=4)  
+
+        
