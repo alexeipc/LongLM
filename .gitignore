@@ -8,3 +8,5 @@
 result-*.json
 long_bench_results.json
 test.py
+setup.py
+build/

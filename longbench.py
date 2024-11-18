@@ -9,6 +9,14 @@ import warnings
 import argparse
 from datasets import load_dataset
 import torch
+from rouge import Rouge
+
+import os
+
+# Create the folder results if it does not exist
+folder_path = "results"
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
 
 warnings.filterwarnings("ignore")
 
@@ -31,7 +39,7 @@ group_size = 32
 use_flash = True
 
 # model_lists = ['google/gemma-7b-it', 'meta-llama/Llama-2-7b-chat-hf', 'mistralai/Mistral-7B-Instruct-v0.1', ]
-model_lists = ['meta-llama/Llama-2-7b-chat-hf']
+model_lists = ['mistralai/Mistral-7B-Instruct-v0.1']
 auth_token = args.auth_token
 
 def normalize_answer(s):
@@ -70,6 +78,13 @@ def qa_f1_score(prediction, ground_truth, type):
     ground_truth_tokens = normalized_ground_truth.split()
     return f1_score(prediction_tokens, ground_truth_tokens)
 
+def rouge_score(prediction, ground_truth, **kwargs):
+    rouge = Rouge()
+    try:
+        scores = rouge.get_scores([prediction], [ground_truth], avg=True)
+    except:
+        return 0.0
+    return scores["rouge-l"]["f"]
 
 
 def gen_prompt(context, input, test_name):
@@ -84,6 +99,31 @@ def gen_prompt(context, input, test_name):
     prompt = prompts[test_name]
     prompt = f"[INST]{prompt}[/INST]"
     return prompt
+
+
+dataset2metric = {
+    "narrativeqa": qa_f1_score,
+    "qasper": qa_f1_score,
+    "multifieldqa_en": qa_f1_score,
+    "multifieldqa_zh": qa_f1_zh_score,
+    "hotpotqa": qa_f1_score,
+    "2wikimqa": qa_f1_score,
+    "musique": qa_f1_score,
+    "dureader": rouge_zh_score,
+    "gov_report": rouge_score,
+    "qmsum": rouge_score,
+    "multi_news": rouge_score,
+    "vcsum": rouge_zh_score,
+    "trec": classification_score,
+    "triviaqa": qa_f1_score,
+    "samsum": rouge_score,
+    "lsht": classification_score,
+    "passage_retrieval_en": retrieval_score,
+    "passage_count": count_score,
+    "passage_retrieval_zh": retrieval_zh_score,
+    "lcc": code_sim_score,
+    "repobench-p": code_sim_score,
+}
 
 for model_name in model_lists:
     print("Start loading model ",model_name)
@@ -152,7 +192,7 @@ for model_name in model_lists:
             
             input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
             with torch.no_grad():
-                print(input_ids.shape)
+                # print(input_ids.shape)
                 tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
             answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
             
@@ -181,7 +221,10 @@ for model_name in model_lists:
             "details": result 
         })
     
-    with open(f'result-{model_name.replace("/","-")}-03.json', 'w') as json_file:
-        json.dump(results_json, json_file, indent=4)  
+        with open(f'results/result-{model_name.replace("/","-")}-{dataset}.json', 'w') as json_file:
+            json.dump(results_json, json_file, indent=4)  
+        
+        results_json = []
+            
 
         

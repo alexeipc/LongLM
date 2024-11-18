@@ -45,7 +45,24 @@ def generate_exponentially_grouping_position(q_max, window_size, base=2):
 
     return group_query_position, group_key_position
 
-def generate_logistically_grouping_position(q_max, window_size, rate=0.01, capacity=32, device="cuda"):
+async_generator_module = load(
+    name="async_generator", 
+    sources=["self_extend_patch/attn_method/logistic.cu"], 
+    build_directory="build",
+    verbose=True
+)
+print("Load module successfully")
+def generate_logistically_grouping_position(q_max, window_size, rate = 0.01, capacity=32, device="cuda"):
+    group_query_position = torch.zeros(q_max, dtype=torch.int32, device=device)  
+    group_key_position = torch.zeros(q_max, dtype=torch.int32, device=device)
+    
+    sync_generator_module.async_generator(group_query_position, group_key_position, q_max, window_size, rate, capacity)
+    group_key_position = group_query_position.unsqueeze(0)
+    group_query_position = group_key_position.unsqueeze(0) 
+    
+    return group_query_position, group_key_position
+
+'''def generate_logistically_grouping_position(q_max, window_size, rate=0.01, capacity=32, device="cuda"):
     def logistic_func(rate, capacity, t):
         try:
             numerator = capacity * math.exp(rate * t)
@@ -77,4 +94,4 @@ def generate_logistically_grouping_position(q_max, window_size, rate=0.01, capac
     group_key_position = torch.tensor([group_key_position], device=device)
     group_query_position = group_query_position + increase_vec
 
-    return group_query_position, group_key_position
+    return group_query_position, group_key_position'''

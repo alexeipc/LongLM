@@ -238,6 +238,7 @@ def flash_self_extend_forward(
         neighbor_key_position = position_ids[:, -1] - key_position
         group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
         decode_key_position = torch.cat([group_key_position[:, :-group_size_2], neighbor_key_position[:,-group_size_2:]], dim=1)
+
         
         #import pdb; pdb.set_trace()
         #neighbor_query_states, _ = apply_rotary_pos_emb(scaled_query, None, cos, sin, query_position_ids) 
