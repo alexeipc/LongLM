@@ -1,5 +1,6 @@
 import torch
 import math
+from torch.utils.cpp_extension import load
 
 def generate_sequentially_grouping_position(q_max, window_size):
     #print(f"Hello {q_max}")
@@ -56,9 +57,11 @@ def generate_logistically_grouping_position(q_max, window_size, rate = 0.01, cap
     group_query_position = torch.zeros(q_max, dtype=torch.int32, device=device)  
     group_key_position = torch.zeros(q_max, dtype=torch.int32, device=device)
     
-    sync_generator_module.async_generator(group_query_position, group_key_position, q_max, window_size, rate, capacity)
-    group_key_position = group_query_position.unsqueeze(0)
-    group_query_position = group_key_position.unsqueeze(0) 
+    async_generator_module.async_generator(group_query_position, group_key_position, q_max, window_size, rate, capacity)
+
+    group_query_position = group_query_position.unsqueeze(0)
+    group_key_position = group_key_position.unsqueeze(0) 
+    #print(group_key_position,group_key_position.shape)
     
     return group_query_position, group_key_position
 
