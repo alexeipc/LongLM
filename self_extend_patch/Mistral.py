@@ -1,5 +1,6 @@
 # transfromers version 4.38.2
 # No support of sliding window. Check our paper for more reason about why we don't use it.
+from self_extend_patch.attn_method import generate_logistically_grouping_position
 import torch
 import torch.nn as nn
 import math
