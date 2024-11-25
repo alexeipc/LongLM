@@ -78,3 +78,4 @@ def generate_logistically_grouping_position(q_max, window_size, rate=0.01, capac
     group_query_position = group_query_position + increase_vec
 
     return group_query_position, group_key_position
+
