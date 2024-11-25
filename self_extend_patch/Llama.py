@@ -219,6 +219,7 @@ def flash_self_extend_forward(
     use_cache: bool = False,
     group_size_1: Optional[float] = 8,              # Group size
     group_size_2: Optional[float] = 1024,           # Window size
+    increase_rate: Optional[float] = 0.2,
     scale_base: Optional[int] = -1,
     cache_position: Optional[torch.LongTensor] = None,
     **kwargs,
@@ -275,7 +276,14 @@ def flash_self_extend_forward(
         #group_query_position, group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2)
         #group_key_position = group_query_position.flip(dims=[1])
         #group_key_position = group_key_position.max() + group_key_position.min() - group_key_position
-        group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
+        #group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
+        
+        # Group key position is decreasing
+        
+        device = value_states.device
+        group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2, device=device, qlen_1 = True)
+        # group_key_position = group_size_2 + group_key_position.max() - group_key_position
+        
         #print(group_key_position)
         
         decode_key_position = torch.cat([group_key_position[:, :-group_size_2], neighbor_key_position[:,-group_size_2:]], dim=1)

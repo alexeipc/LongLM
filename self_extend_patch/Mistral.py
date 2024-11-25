@@ -9,6 +9,8 @@ import numpy as np
 from flash_attn import flash_attn_func, flash_attn_varlen_func
 
 from .selfextend_flash_attn import self_extend_flash_forward
+from .attn_method import generate_sequentially_grouping_position, generate_exponentially_grouping_position, generate_logistically_grouping_position
+
 
 
 
@@ -43,8 +45,11 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids):
 
 def apply_grouped_rotary_pos_emb(q, k, cos, sin, position_ids, g_size_1=1, g_size_2=4096):
     # The first two dimensions of cos and sin are always 1, so we can `squeeze` them.
-    position_ids_q = position_ids//g_size_1 + g_size_2 - g_size_2//g_size_1
-    position_ids_k = position_ids//g_size_1
+    #position_ids_q = position_ids//g_size_1 + g_size_2 - g_size_2//g_size_1
+    #position_ids_k = position_ids//g_size_1
+    
+    
+    position_ids_q, position_ids_k = generate_logistically_grouping_position(position_ids.shape[1], g_size_2, device=device)
 
     cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
     sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]

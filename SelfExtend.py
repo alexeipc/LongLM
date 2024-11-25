@@ -64,7 +64,7 @@ def modify_method_of_instance(instance, target_class_name, target_method_name, n
     return target_found
 
 
-def apply(loaded_model, group_size, window_size, enable_flash_attention=False, scale_base=-1, flash_attention_impl="triton"):
+def apply(loaded_model, group_size, window_size, increase_rate=0.2, enable_flash_attention=False, scale_base=-1, flash_attention_impl="triton"):
     '''
         loaded_model: 
             model to apply the self-attention extension. 
@@ -91,6 +91,7 @@ def apply(loaded_model, group_size, window_size, enable_flash_attention=False, s
                 self_extend_attention_forward = partial(SE.Llama.flash_self_extend_forward,
                                             group_size_1=group_size, 
                                             group_size_2=window_size,
+                                            increase_rate = increase_rate,
                                             scale_base=scale_base)
                 modifed_1 = modify_method_of_instance(loaded_model, "LlamaFlashAttention2", "_flash_attention_forward", SE.selfextend_flash_attn.flash_attention2_forward_with_window_size)
                 modifed_2 = modify_method_of_instance(loaded_model, "LlamaFlashAttention2", "forward", self_extend_attention_forward)

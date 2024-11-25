@@ -23,6 +23,7 @@ import SelfExtend
 window_size = 1024
 group_size = 32
 use_flash = True
+rate = 0.2
 
 # model_lists = ['google/gemma-7b-it', 'meta-llama/Llama-2-7b-chat-hf', 'mistralai/Mistral-7B-Instruct-v0.1', ]
 model_lists = ['meta-llama/Llama-2-7b-chat-hf']
@@ -33,11 +34,11 @@ for model_name in model_lists:
     print("Start loading model ",model_name)
     if 'Mistral' in model_name:
         # Disable Mistral's sliding window
-        config = AutoConfig.from_pretrained(model_name)
+        config = AutoConfig.from_pretrained(model_name, use_auth_token=auth_token)
         config.sliding_window = None
-        model = AutoModelForCausalLM.from_pretrained(model_name, config=config, device_map="auto", torch_dtype=torch.bfloat16, use_flash_attention_2=use_flash)
+        model = AutoModelForCausalLM.from_pretrained(model_name, config=config, device_map="auto", torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2")
     else:
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2", use_auth_token=auth_token).cuda()
+        model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2", use_auth_token=auth_token)
 
     print("Model loaded")
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
@@ -51,7 +52,7 @@ for model_name in model_lists:
         example = json.loads(line)
         prompt_postfix = "What is the pass key? The pass key is "
         prompt = example["input"] + prompt_postfix
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
         print( "-----------------------------------" )
         print( f"#Tokens of Prompt:", input_ids.shape[1], end=" " )
         print( "Passkey target:", example["target"] )
@@ -68,12 +69,12 @@ for model_name in model_lists:
 
     
     print("=========="*2 + "**SelfExtend using flash_attn**" + "=========="*2)
-    SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
+    SelfExtend.apply(model, group_size, window_size, rate, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
     for line in open(file_name, "r"):
         example = json.loads(line)
         prompt_postfix = "What is the pass key? The pass key is "
         prompt = example["input"] + prompt_postfix
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
         print( f"#Tokens of Prompt:", input_ids.shape[1], end=" " )
         print( "Passkey target:", example["target"] )
 

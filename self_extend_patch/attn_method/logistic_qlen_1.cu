@@ -21,29 +21,20 @@ struct Group {
     }
 };
 
-__device__ void group_id(int id, int n, int capacity, int presum, int last_group_size, Group* group, int* res) {
+__device__ void group_id(int id, int n, int capacity, int window_size, int presum, int last_group_size, Group* group, int* res) {
     int next_group_size = last_group_size + 1;
     int last_group_pos = group[last_group_size].last;
     
     int group_id = last_group_pos + (id - presum + next_group_size - 1) / next_group_size;
     
-    res[n - id] = n - group_id;
+    res[n - id] = window_size + group_id;
 }
 
-__global__ void gpu_key_group_id(int n, int capacity, int presum, int last_group_size, Group* groups, int* res) {
+__global__ void gpu_key_group_id(int n, int capacity, int window_size, int presum, int last_group_size, Group* groups, int* res) {
     int id = presum + threadIdx.x + blockIdx.x * blockDim.x;
     int max_n = presum + groups[last_group_size + 1].last - groups[last_group_size + 1].first;
 	
-	if (id < n) group_id(id + 1, n, capacity, presum, last_group_size, groups, res);
-}
-
-__global__ void gpu_query_group_id(int n, int window_size, int* group_query_position, int* group_key_position) {
-    int i = threadIdx.x + blockIdx.x * blockDim.x;
-
-    if (i < window_size) group_query_position[i] = 0;
-    else if (i < n) {
-        group_query_position[i] = window_size + group_key_position[i - window_size];
-    }
+	if (id < n) group_id(id + 1, n, capacity, window_size, presum, last_group_size, groups, res);
 }
 
 __global__ void freq_group(int capacity, double rate, Group* groups) {
@@ -59,7 +50,7 @@ __global__ void freq_group(int capacity, double rate, Group* groups) {
    }
 }
 
-void async_generator(torch::Tensor group_query_position, torch::Tensor group_key_position, int n, int window_size, double rate, double capacity) {
+void async_generator(torch::Tensor group_key_position, int n, int window_size, double rate, double capacity) {
 	Group* groups;
 
 	cudaMallocManaged(&groups, capacity * sizeof(Group));
@@ -72,13 +63,11 @@ void async_generator(torch::Tensor group_query_position, torch::Tensor group_key
 	for (int i = 1; i < capacity - 1; ++i) {
         int group_size = groups[i].last - groups[i].first + 1;
         int next_group_size = groups[i + 1].last - groups[i + 1].first + 1;
-        gpu_key_group_id<<<(n + MAX_THREAD - 1)/MAX_THREAD, MAX_THREAD>>>(n, capacity, presum, i - 1, groups ,group_key_position.data_ptr<int>());
+        gpu_key_group_id<<<(n + MAX_THREAD - 1)/MAX_THREAD, MAX_THREAD>>>(n, capacity, window_size, presum, i - 1, groups ,group_key_position.data_ptr<int>());
         presum = presum + i * group_size;
     }
 	cudaDeviceSynchronize();
 
-    gpu_query_group_id<<<(n + MAX_THREAD - 1)/MAX_THREAD, MAX_THREAD>>>(n, window_size, group_query_position.data_ptr<int>() , group_key_position.data_ptr<int>());
-    cudaDeviceSynchronize();
     cudaFree(groups);
 }
 
