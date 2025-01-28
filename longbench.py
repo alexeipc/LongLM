@@ -9,6 +9,14 @@ import warnings
 import argparse
 from datasets import load_dataset
 import torch
+from rouge import Rouge
+
+import os
+
+# Create the folder results if it does not exist
+folder_path = "results"
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
 
 warnings.filterwarnings("ignore")
 
@@ -25,13 +33,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
 
 import SelfExtend 
 
+print('t')
 
 window_size = 1024
 group_size = 32
 use_flash = True
 
 # model_lists = ['google/gemma-7b-it', 'meta-llama/Llama-2-7b-chat-hf', 'mistralai/Mistral-7B-Instruct-v0.1', ]
-model_lists = ['mistralai/Mistral-7B-Instruct-v0.3']
+model_lists = ['meta-llama/Llama-2-7b-chat-hf']
 auth_token = args.auth_token
 
 def normalize_answer(s):
@@ -70,6 +79,13 @@ def qa_f1_score(prediction, ground_truth, type):
     ground_truth_tokens = normalized_ground_truth.split()
     return f1_score(prediction_tokens, ground_truth_tokens)
 
+def rouge_score(prediction, ground_truth, **kwargs):
+    rouge = Rouge()
+    try:
+        scores = rouge.get_scores([prediction], [ground_truth], avg=True)
+    except:
+        return 0.0
+    return scores["rouge-l"]["f"]
 
 
 def gen_prompt(context, input, test_name):
@@ -84,6 +100,31 @@ def gen_prompt(context, input, test_name):
     prompt = prompts[test_name]
     prompt = f"[INST]{prompt}[/INST]"
     return prompt
+
+
+'''dataset2metric = {
+    "narrativeqa": qa_f1_score,
+    "qasper": qa_f1_score,
+    "multifieldqa_en": qa_f1_score,
+    "multifieldqa_zh": qa_f1_zh_score,
+    "hotpotqa": qa_f1_score,
+    "2wikimqa": qa_f1_score,
+    "musique": qa_f1_score,
+    "dureader": rouge_zh_score,
+    "gov_report": rouge_score,
+    "qmsum": rouge_score,
+    "multi_news": rouge_score,
+    "vcsum": rouge_zh_score,
+    "trec": classification_score,
+    "triviaqa": qa_f1_score,
+    "samsum": rouge_score,
+    "lsht": classification_score,
+    "passage_retrieval_en": retrieval_score,
+    "passage_count": count_score,
+    "passage_retrieval_zh": retrieval_zh_score,
+    "lcc": code_sim_score,
+    "repobench-p": code_sim_score,
+}'''
 
 for model_name in model_lists:
     print("Start loading model ",model_name)
@@ -129,59 +170,58 @@ for model_name in model_lists:
     
     for dataset in datasets:
         torch.cuda.empty_cache()
-        data = load_dataset('THUDM/LongBench', dataset, split='test')
+        data = load_dataset('THUDM/LongBench-v2', dataset, split='test')
         
         print("---------------------------------\n")
         print(dataset)
         print("---------------------------------\n")
-
         total_score = 0
         expected_score = 0
         
         result = []
         
-        for i in range(len(data['context'])):
-        #for i in range(4,10):
-            expected_score += 1
-            context = data['context'][i]
-            input_text = data['input'][i]
-            question_type = "na"
-            expected_answers = data["answers"][i]
-
-            prompt = gen_prompt(context, input_text, dataset)
+        for trial in range(0,3):
+            print("Trial", trial)
+            for i in range(len(data['context'])):
+            #for i in range(4,10):
+                expected_score += 1
+                context = data['context'][i]
+                input_text = data['input'][i]
+                question_type = "na"
+                expected_answers = data["answers"][i]
+                prompt = gen_prompt(context, input_text, dataset)
+                
+                input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+                with torch.no_grad():
+                    # print(input_ids.shape)
+                    tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
+                answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
+                
+                score = 0
+                for expected_answer in expected_answers:
+                    score = max(score, qa_f1_score(answer, expected_answer,question_type))
+                
+                total_score += score
+                '''print(f"Expected answer: {expected_answers}")
+                print(f"{input_text} type: {question_type}")
+                print(f"Model's answer: {answer}")
+                print(f"Score: {score}")'''
+                
+                result.append({
+                    "expected_answers": expected_answers,
+                    "model_answer": answer,
+                    "score": score
+                })
             
-            input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
-            with torch.no_grad():
-                print(input_ids.shape)
-                tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
-            answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
-            
-            score = 0
-            for expected_answer in expected_answers:
-                score = max(score, qa_f1_score(answer, expected_answer,question_type))
-            
-            total_score += score
-
-            '''print(f"Expected answer: {expected_answers}")
-            print(f"{input_text} type: {question_type}")
-            print(f"Model's answer: {answer}")
-            print(f"Score: {score}")'''
-            
-            result.append({
-                "expected_answers": expected_answers,
-                "model_answer": answer,
-                "score": score
-            })
-        
-        print(f"Total score: {total_score/expected_score * 100}")
-        
         results_json.append({
             "test_name": dataset,
             "score": (total_score/expected_score * 100),
             "details": result 
         })
+            
+        print(f"Total score: {total_score/expected_score * 100}")
     
-    with open(f'result-{model_name.replace("/","-")}-03.json', 'w') as json_file:
-        json.dump(results_json, json_file, indent=4)  
-
+        with open(f'results/result-{model_name.replace("/","-")}-{dataset}.json', 'w') as json_file:
+            json.dump(results_json, json_file, indent=4)  
         
+        results_json = []
