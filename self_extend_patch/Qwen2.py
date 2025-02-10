@@ -42,11 +42,13 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids):
     k_embed = (k * cos) + (rotate_half(k) * sin) if k is not None else None
     return q_embed, k_embed
 
-def apply_grouped_rotary_pos_emb(q, k, cos, sin, position_ids, g_size_1=1, g_size_2=4096):
+def apply_grouped_rotary_pos_emb(q, k, cos, sin, position_ids, device, g_size_1=1, g_size_2=4096):
     # The first two dimensions of cos and sin are always 1, so we can `squeeze` them.
-    position_ids_q = position_ids//g_size_1 + g_size_2 - g_size_2//g_size_1
-    position_ids_k = position_ids//g_size_1
+    # position_ids_q = position_ids//g_size_1 + g_size_2 - g_size_2//g_size_1
+    # position_ids_k = position_ids//g_size_1
 
+    position_ids_q, position_ids_k = generate_logistically_grouping_position(position_ids.shape[1], g_size_1, device=device)
+    
     cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
     sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]
     cos_q = cos[position_ids_q].unsqueeze(1)  # [bs, 1, seq_len, dim]
@@ -237,7 +239,12 @@ def flash_self_extend_forward(
     if q_len == 1:
         _re_group_size_2 = 0 if position_ids.max() < group_size_2 else group_size_2
         neighbor_key_position = position_ids[:, -1] - key_position
-        group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
+        
+        #group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
+        
+        device = value_states.device
+        group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2, device=device, qlen_1 = True)
+        
         decode_key_position = torch.cat([group_key_position[:, :-group_size_2], neighbor_key_position[:,-group_size_2:]], dim=1)
         
         #import pdb; pdb.set_trace()
@@ -262,8 +269,10 @@ def flash_self_extend_forward(
         neighbor_query_states, _ = apply_rotary_pos_emb(scaled_query, None, cos, sin, query_position) 
         _, neighbor_key_states = apply_rotary_pos_emb(None, key_states, cos, sin, key_position) 
 
-        group_query_states, _ = apply_grouped_rotary_pos_emb(scaled_query, None, cos, sin, query_position, g_size_1=group_size_1, g_size_2=_re_group_size_2) 
-        _, group_key_states = apply_grouped_rotary_pos_emb(None, key_states, cos, sin, key_position, g_size_1=group_size_1, g_size_2=_re_group_size_2) 
+        device = value_states.device
+        
+        group_query_states, _ = apply_grouped_rotary_pos_emb(scaled_query, None, cos, sin, query_position, device = device, g_size_1=group_size_1, g_size_2=_re_group_size_2) 
+        _, group_key_states = apply_grouped_rotary_pos_emb(None, key_states, cos, sin, key_position, device = device, g_size_1=group_size_1, g_size_2=_re_group_size_2) 
 
 
         neighbor_query_states = neighbor_query_states.transpose(1, 2).contiguous()

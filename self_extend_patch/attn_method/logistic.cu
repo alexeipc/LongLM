@@ -27,7 +27,7 @@ __device__ void group_id(int id, int n, int capacity, int presum, int last_group
     
     int group_id = last_group_pos + (id - presum + next_group_size - 1) / next_group_size;
     
-    res[n - id] = n - group_id;
+    if (n - id >= 0 && n >= group_id) res[n - id] = n - group_id;
 }
 
 __global__ void gpu_key_group_id(int n, int capacity, int presum, int last_group_size, Group* groups, int* res) {

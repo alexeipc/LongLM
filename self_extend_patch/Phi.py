@@ -14,6 +14,8 @@ import numpy as np
 from flash_attn import flash_attn_func, flash_attn_varlen_func
 
 from .selfextend_flash_attn import self_extend_flash_forward
+from .attn_method import generate_sequentially_grouping_position, generate_exponentially_grouping_position, generate_logistically_grouping_position
+
 
 
 # Copied from transformers.models.llama.modeling_llama.rotate_half
@@ -53,7 +55,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids, unsqueeze_dim=1):
     k_embed = (k * cos) + (rotate_half(k) * sin) if k is not None else None
     return q_embed, k_embed
 
-def apply_group_rotary_pos_emb(q, k, cos, sin, position_ids, unsqueeze_dim=1, group_size_1=2, group_size_2=512):
+def apply_group_rotary_pos_emb(q, k, cos, sin, position_ids, device, unsqueeze_dim=1, group_size_1=2, group_size_2=512):
     """Applies Rotary Position Embedding to the query and key tensors.
 
     Args:
@@ -74,9 +76,12 @@ def apply_group_rotary_pos_emb(q, k, cos, sin, position_ids, unsqueeze_dim=1, gr
     Returns:
         `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
     """
-    q_pos = position_ids//group_size_1 + group_size_2 - group_size_2//group_size_1
-    k_pos = position_ids//group_size_1 
-
+    #q_pos = position_ids//group_size_1 + group_size_2 - group_size_2//group_size_1
+    #k_pos = position_ids//group_size_1 
+    
+    q_pos, k_pos = generate_logistically_grouping_position(position_ids.shape[1], group_size_1, device=device)
+    
+    import ipdb; ipdb.set_trace()
     q_cos = cos[q_pos].unsqueeze(unsqueeze_dim)
     q_sin = sin[q_pos].unsqueeze(unsqueeze_dim)
     k_cos = cos[k_pos].unsqueeze(unsqueeze_dim)
@@ -167,8 +172,11 @@ def self_extend_forward(
     neighbor_query_rot, _ = apply_rotary_pos_emb(query_rot, None, cos, sin, q_pos)
     _, neighbor_key_rot = apply_rotary_pos_emb(None, key_rot, cos, sin, k_pos)
     _re_group_size_2 = 0 if position_ids.max() < group_size_2 else group_size_2 # in case that, the smallest q position, g2-g2//g1 exceed the max position
-    group_query_rot, _ = apply_group_rotary_pos_emb(query_rot, None, cos, sin, q_pos, group_size_1=group_size_1, group_size_2=_re_group_size_2)
-    _, group_key_rot = apply_group_rotary_pos_emb(None, key_rot, cos, sin, k_pos, group_size_1=group_size_1, group_size_2=_re_group_size_2)
+    
+    device = value_states.device
+    
+    group_query_rot, _ = apply_group_rotary_pos_emb(query_rot, None, cos, sin, q_pos, device = device, group_size_1=group_size_1, group_size_2=_re_group_size_2)
+    _, group_key_rot = apply_group_rotary_pos_emb(None, key_rot, cos, sin, k_pos, device = device, group_size_1=group_size_1, group_size_2=_re_group_size_2)
 
 
     # [batch_size, seq_length, num_heads, head_dim]
@@ -313,7 +321,12 @@ def flash_self_extend_forward(
     if q_len == 1:
         _re_group_size_2 = 0 if position_ids.max() < group_size_2 else group_size_2
         neighbor_key_position = position_ids[:, -1] - key_position
-        group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
+
+        # group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
+        
+        device = value_states.device
+        group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2, device=device, qlen_1 = True)
+        
         decode_key_position = torch.cat([group_key_position[:, :-group_size_2], neighbor_key_position[:,-group_size_2:]], dim=1)
 
         #decode_query_states = scaled_query.transpose(1,2).contiguous() # position 0: cos 0 = 1, sin 0 = 0
@@ -334,12 +347,15 @@ def flash_self_extend_forward(
     elif q_len == kv_seq_len:
         # set correct position_ids & apply RoPE.
         _re_group_size_2 = 0 if query_position.max() < group_size_2 else group_size_2 # in case that, the smallest q position, g2-g2//g1 exceed the max position
-
+        
         neighbor_query_rot, _ = apply_rotary_pos_emb(query_rot, None, cos, sin, query_position)
         _, neighbor_key_rot = apply_rotary_pos_emb(None, key_rot, cos, sin, key_position)
         _re_group_size_2 = 0 if position_ids.max() < group_size_2 else group_size_2 # in case that, the smallest q position, g2-g2//g1 exceed the max position
-        group_query_rot, _ = apply_group_rotary_pos_emb(query_rot, None, cos, sin, query_position, group_size_1=group_size_1, group_size_2=_re_group_size_2)
-        _, group_key_rot = apply_group_rotary_pos_emb(None, key_rot, cos, sin, key_position, group_size_1=group_size_1, group_size_2=_re_group_size_2)
+        
+        device = value_states.device
+        
+        group_query_rot, _ = apply_group_rotary_pos_emb(query_rot, None, cos, sin, query_position, group_size_1=group_size_1, group_size_2=_re_group_size_2, device = device)
+        _, group_key_rot = apply_group_rotary_pos_emb(None, key_rot, cos, sin, key_position, group_size_1=group_size_1, group_size_2=_re_group_size_2, device = device)
 
         # [batch_size, seq_length, num_heads, head_dim]
 

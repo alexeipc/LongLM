@@ -61,7 +61,7 @@ async_generator_qlen_1_module = load(
 )
 
 print("Load module successfully")
-def generate_logistically_grouping_position(q_max, window_size, rate = 0.01, capacity=32, device="cuda", qlen_1 = False):
+def generate_logistically_grouping_position(q_max, window_size, rate = 0.2, capacity=32, device="cuda", qlen_1 = False):
     if not qlen_1:
         group_query_position = torch.zeros(q_max, dtype=torch.int32, device=device)  
         group_key_position = torch.zeros(q_max, dtype=torch.int32, device=device)
