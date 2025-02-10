@@ -64,7 +64,7 @@ def modify_method_of_instance(instance, target_class_name, target_method_name, n
     return target_found
 
 
-def apply(loaded_model, group_size, window_size, increase_rate=0.2, enable_flash_attention=False, scale_base=-1, flash_attention_impl="triton"):
+def apply(loaded_model, group_size, window_size, increase_rate=0.4, enable_flash_attention=False, scale_base=-1, flash_attention_impl="triton"):
     '''
         loaded_model: 
             model to apply the self-attention extension. 

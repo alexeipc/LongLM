@@ -22,6 +22,9 @@ warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(description="Load a transformer model with a specified auth token.")
 parser.add_argument("--auth_token", type=str, required=True, help="Hugging Face authentication token")
+parser.add_argument("--start_cap", type=int, required=True)
+parser.add_argument("--end_cap", type=int, required=True)
+
 args = parser.parse_args()
 torch.cuda.memory_summary()
 
@@ -37,7 +40,7 @@ import SelfExtend
 window_size = 1024
 group_size = 32
 use_flash = True
-capacity_range = range(19,32)
+capacity_range = [2**i for i in range(args.start_cap, args.end_cap + 1)]
 rate_range = [x * 0.05 for x in range(1, 10)]
 dataset = "qasper"
 
