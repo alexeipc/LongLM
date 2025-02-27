@@ -40,7 +40,7 @@ __global__ void gpu_key_group_id(int n, int capacity, int presum, int last_group
 __global__ void gpu_query_group_id(int n, int window_size, int* group_query_position, int* group_key_position) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
 
-    if (i < window_size) group_query_position[i] = 0;
+    if (i < window_size) group_query_position[i] = window_size;
     else if (i < n) {
         group_query_position[i] = window_size + group_key_position[i - window_size];
     }
@@ -60,6 +60,7 @@ __global__ void freq_group(int capacity, double rate, Group* groups) {
 }
 
 void async_generator(torch::Tensor group_query_position, torch::Tensor group_key_position, int n, int window_size, double rate, double capacity) {
+    printf("%d\n", window_size);
 	Group* groups;
 
 	cudaMallocManaged(&groups, capacity * sizeof(Group));

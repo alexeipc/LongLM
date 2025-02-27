@@ -79,10 +79,18 @@ def apply_group_rotary_pos_emb(q, k, cos, sin, position_ids, device, unsqueeze_d
     #q_pos = position_ids//group_size_1 + group_size_2 - group_size_2//group_size_1
     #k_pos = position_ids//group_size_1 
     
-    q_pos, k_pos = generate_logistically_grouping_position(position_ids.shape[1], group_size_1, device=device)
+    print(group_size_2)
+    q_pos, k_pos = generate_logistically_grouping_position(position_ids.shape[1], group_size_2, device=device)
     
-    import ipdb; ipdb.set_trace()
+    print("cos.shape:",cos.shape)
+    print("q_pos:",q_pos,"min:",q_pos.min().item(),"max:",q_pos.max().item())
+    
+    q_pos = q_pos.clamp(0, cos.size(0) - 1)
+    k_pos = k_pos.clamp(0, cos.size(0) - 1)
+    
     q_cos = cos[q_pos].unsqueeze(unsqueeze_dim)
+    
+    #print("Hi")
     q_sin = sin[q_pos].unsqueeze(unsqueeze_dim)
     k_cos = cos[k_pos].unsqueeze(unsqueeze_dim)
     k_sin = sin[k_pos].unsqueeze(unsqueeze_dim)
@@ -325,6 +333,7 @@ def flash_self_extend_forward(
         # group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
         
         device = value_states.device
+        print("fff: ",group_size_2)
         group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2, device=device, qlen_1 = True)
         
         decode_key_position = torch.cat([group_key_position[:, :-group_size_2], neighbor_key_position[:,-group_size_2:]], dim=1)
