@@ -170,7 +170,7 @@ for model_name in model_lists:
     
     for dataset in datasets:
         torch.cuda.empty_cache()
-        data = load_dataset('THUDM/LongBench-v2', dataset, split='test')
+        data = load_dataset('THUDM/LongBench-v2', dataset, split='test', streaming=True)
         
         print("---------------------------------\n")
         print(dataset)
@@ -179,6 +179,8 @@ for model_name in model_lists:
         expected_score = 0
         
         result = []
+
+        print(data)
         
         for trial in range(0,3):
             print("Trial", trial)
