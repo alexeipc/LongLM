@@ -172,7 +172,7 @@ for model_name in model_lists:
     
     for dataset in datasets:
         torch.cuda.empty_cache()
-        data = load_dataset('THUDM/LongBench-v2', dataset, split='test', streaming=True)
+        data = load_dataset('THUDM/LongBench-v2', dataset, split='train', streaming=True)
         
         print("---------------------------------\n")
         print(dataset)
