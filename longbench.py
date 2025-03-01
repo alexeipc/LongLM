@@ -13,6 +13,21 @@ from rouge import Rouge
 
 import os
 
+template = '''Please read the following text and answer the question below.
+
+<text>
+$DOC$
+</text>
+
+What is the correct answer to this question: $Q$
+Choices:
+(A) $C_A$
+(B) $C_B$
+(C) $C_C$
+(D) $C_D$
+
+Format your response as follows: "The correct answer is (insert answer here)".'''
+
 # Create the folder results if it does not exist
 folder_path = "results"
 if not os.path.exists(folder_path):
@@ -87,6 +102,18 @@ def rouge_score(prediction, ground_truth, **kwargs):
         return 0.0
     return scores["rouge-l"]["f"]
 
+
+def extract_answer(response):
+    response = response.replace('*', '')
+    match = re.search(r'The correct answer is \(([A-D])\)', response)
+    if match:
+        return match.group(1)
+    else:
+        match = re.search(r'The correct answer is ([A-D])', response)
+        if match:
+            return match.group(1)
+        else:
+            return None
 
 def gen_prompt(context, input, test_name):
     prompts = {
@@ -183,40 +210,59 @@ for model_name in model_lists:
         result = []
 
         # print(data)
+
+        easy, hard, short, medium, long = 0, 0, 0, 0, 0
+        easy_acc, hard_acc, short_acc, medium_acc, long_acc = 0, 0, 0, 0, 0
         
-        for trial in range(0,3):
+        for trial in range(0,1):
             print("Trial", trial)
             for i in range(len(data['context'])):
             #for i in range(4,10):
                 expected_score += 1
                 context = data['context'][i]
-                input_text = data['input'][i]
-                question_type = "na"
-                expected_answers = data["answers"][i]
-                prompt = gen_prompt(context, input_text, dataset)
+                question = data['question'][i]
+                #question_type = "na"
+                answer = data['answer'][i]
+                a = data['choice_A'][i]
+                b = data['choice_B'][i]
+                c = data['choice_C'][i]
+                d = data['choice_D'][i]
+                #expected_answers = data["answers"][i]
+                prompt = template.replace("$DOC$", context).replace("$Q$", question).replace("$C_A$", a).replace("$C_B$", b).replace("$C_C$", c).replace("$C_D$", d)
                 
                 input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
                 with torch.no_grad():
                     # print(input_ids.shape)
                     tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
+
+                pred = extract_answer(answer)
+
+                if data['difficulty'][i] == 'easy':
+                    easy += 1
+                    if pred == answer:
+                        easy_acc += 0.25
+                else:
+                    if data['difficulty'][i] == 'hard':
+                        hard += 1
+                        if pred == answer:
+                            hard_acc += 0.25
                 
-                score = 0
-                for expected_answer in expected_answers:
-                    score = max(score, qa_f1_score(answer, expected_answer,question_type))
-                
-                total_score += score
-                '''print(f"Expected answer: {expected_answers}")
-                print(f"{input_text} type: {question_type}")
-                print(f"Model's answer: {answer}")
-                print(f"Score: {score}")'''
-                
-                result.append({
-                    "expected_answers": expected_answers,
-                    "model_answer": answer,
-                    "score": score
-                })
+                if data['length'][i] == 'short':
+                    short += 1
+                    if pred == answer:
+                        short_acc += 0.25
+                elif data['length'][i] == 'medium':
+                    medium += 1
+                    if pred == answer:
+                        medium_acc += 0.25
+                else:
+                    long += 1
+                    if pred == answer:
+                        long_acc += 0.25
             
+        print(str(round(100*(easy_acc+hard_acc)/len(data['context']), 1))+'\t'+str(round(100*easy_acc/easy, 1))+'\t'+str(round(100*hard_acc/hard, 1))+'\t'+str(round(100*short_acc/short, 1))+'\t'+str(round(100*medium_acc/medium, 1))+'\t'+str(round(100*long_acc/long, 1)))
+        
         results_json.append({
             "test_name": dataset,
             "score": (total_score/expected_score * 100),
