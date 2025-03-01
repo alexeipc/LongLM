@@ -1,6 +1,8 @@
 # transfromers version 4.38.2
 # this example is tested with 4 RTX3090s, 24GB memory each
 # Edit 1.0
+
+print("iii")
 import re
 import string
 from collections import Counter
