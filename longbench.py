@@ -146,6 +146,7 @@ for model_name in model_lists:
     print("=========="*2 + "**SelfExtend using flash_attn**" + "=========="*2)
     SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
     # model = model.cuda()
+    '''
     for line in open(file_name, "r"):
         example = json.loads(line)
         prompt_postfix = "What is the pass key? The pass key is "
@@ -164,6 +165,7 @@ for model_name in model_lists:
         print( f"Runing Time: {end_time - start_time:.2f} sec" )
         print( "-----------------------------------\n" )
         break;
+    '''
     
     datasets = ["qasper"]
     results_json = []
