@@ -236,8 +236,10 @@ for model_name in model_lists:
                 #expected_answers = data["answers"][i]
                 prompt = template.replace("$DOC$", context).replace("$Q$", question).replace("$C_A$", a).replace("$C_B$", b).replace("$C_C$", c).replace("$C_D$", d)
 
-                if len(prompt) > 4096:
+                if len(prompt) > 4096*2:
                     continue
+                
+                print('running prompt', i)
                 
                 input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
                 with torch.no_grad():
