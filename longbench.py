@@ -46,6 +46,8 @@ import time
 from transformers.models.llama.modeling_llama import LlamaAttention
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
 
+print('tt')
+
 import SelfExtend 
 
 print('t')
