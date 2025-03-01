@@ -4,7 +4,6 @@
 import re
 import string
 from collections import Counter
-from fuzzywuzzy import fuzz
 
 import warnings
 import argparse
@@ -13,6 +12,21 @@ import torch
 from rouge import Rouge
 
 import os
+
+template = '''Please read the following text and answer the question below.
+
+<text>
+$DOC$
+</text>
+
+What is the correct answer to this question: $Q$
+Choices:
+(A) $C_A$
+(B) $C_B$
+(C) $C_C$
+(D) $C_D$
+
+Format your response as follows: "The correct answer is (insert answer here)".'''
 
 # Create the folder results if it does not exist
 folder_path = "results"
@@ -34,13 +48,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
 
 import SelfExtend 
 
+print('t')
 
 window_size = 1024
 group_size = 32
 use_flash = True
 
 # model_lists = ['google/gemma-7b-it', 'meta-llama/Llama-2-7b-chat-hf', 'mistralai/Mistral-7B-Instruct-v0.1', ]
-model_lists = ['mistralai/Mistral-7B-Instruct-v0.3']
+model_lists = ['meta-llama/Llama-2-7b-chat-hf']
 auth_token = args.auth_token
 
 def normalize_answer(s):
@@ -71,22 +86,13 @@ def f1_score(prediction, ground_truth, **kwargs):
     f1 = (2 * precision * recall) / (precision + recall)
     return f1
 
-def qa_f1_score(prediction, ground_truth, **kwargs):
+def qa_f1_score(prediction, ground_truth, type):
     normalized_prediction = normalize_answer(prediction)
     normalized_ground_truth = normalize_answer(ground_truth)
 
     prediction_tokens = normalized_prediction.split()
     ground_truth_tokens = normalized_ground_truth.split()
     return f1_score(prediction_tokens, ground_truth_tokens)
-
-def code_sim_score(prediction, ground_truth, **kwargs):
-    all_lines = prediction.lstrip('\n').split('\n')
-    prediction = ""
-    for line in all_lines:
-        if ('`' not in line) and ('#' not in line) and ('//' not in line):
-            prediction = line
-            break
-    return (fuzz.ratio(prediction, ground_truth) / 100)
 
 def rouge_score(prediction, ground_truth, **kwargs):
     rouge = Rouge()
@@ -97,6 +103,18 @@ def rouge_score(prediction, ground_truth, **kwargs):
     return scores["rouge-l"]["f"]
 
 
+def extract_answer(response):
+    response = response.replace('*', '')
+    match = re.search(r'The correct answer is \(([A-D])\)', response)
+    if match:
+        return match.group(1)
+    else:
+        match = re.search(r'The correct answer is ([A-D])', response)
+        if match:
+            return match.group(1)
+        else:
+            return None
+
 def gen_prompt(context, input, test_name):
     prompts = {
         "qasper": f"Article: {context}\n\n Answer the question based on the above article as concisely as you can, using a single list or word if possible. If the question cannot be answered based on the information in the article, write \"unanswerable\". Do not provide any explanation.\n\nQuestion: {input}\n\nAnswer:",
@@ -105,25 +123,37 @@ def gen_prompt(context, input, test_name):
         "hotpotqa": f"{context}\n\nAnswer the question based on the given passages. Only give me the answer and do not output any other words.\n\nQuestion: {input}\nAnswer:",
         "2wikimqa": f"{context}\n\nAnswer the question based on the given passages. Only give me the answer and do not output any other words.\n\nQuestion: {input}\nAnswer:",
         "musique": f"The following are given passages.\n{context}\n\nAnswer the question based on the given passages. Only give me the answer and do not output any other words.\n\nQuestion: {input}\nAnswer:",
-        "lcc": f"Please complete the code given below. \n{context}Next line of code:\n",
     }
     prompt = prompts[test_name]
     prompt = f"[INST]{prompt}[/INST]"
     return prompt
 
 
-dataset2metric = {
+'''dataset2metric = {
     "narrativeqa": qa_f1_score,
     "qasper": qa_f1_score,
     "multifieldqa_en": qa_f1_score,
+    "multifieldqa_zh": qa_f1_zh_score,
     "hotpotqa": qa_f1_score,
     "2wikimqa": qa_f1_score,
     "musique": qa_f1_score,
+    "dureader": rouge_zh_score,
+    "gov_report": rouge_score,
+    "qmsum": rouge_score,
+    "multi_news": rouge_score,
+    "vcsum": rouge_zh_score,
+    "trec": classification_score,
+    "triviaqa": qa_f1_score,
+    "samsum": rouge_score,
+    "lsht": classification_score,
+    "passage_retrieval_en": retrieval_score,
+    "passage_count": count_score,
+    "passage_retrieval_zh": retrieval_zh_score,
     "lcc": code_sim_score,
     "repobench-p": code_sim_score,
-}
+}'''
 
-def load_model_and_tokenizer(model_name):
+for model_name in model_lists:
     print("Start loading model ",model_name)
     if 'Mistral' in model_name:
         # Disable Mistral's sliding window
@@ -135,86 +165,104 @@ def load_model_and_tokenizer(model_name):
 
     print("Model loaded")
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
-    
     print("Tokenizer loaded")
     model.eval()
-    
-    #SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn")
-    
     print("Finished loading")
+    file_name = "passkey_examples.jsonl"
     
-    return model, tokenizer
-
-for model_name in model_lists:
     print("=========="*2 + "**SelfExtend using flash_attn**" + "=========="*2)
+    SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
+    # model = model.cuda()
+    '''
+    for line in open(file_name, "r"):
+        example = json.loads(line)
+        prompt_postfix = "What is the pass key? The pass key is "
+        prompt = example["input"] + prompt_postfix
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+        print( f"#Tokens of Prompt:", input_ids.shape[1], end=" " )
+        print( "Passkey target:", example["target"] )
+
+        start_time = time.time()
+        tokens = model.generate(input_ids, max_new_tokens=len(example["target"]))
+        end_time = time.time()
+        answer = prompt_postfix + tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
+        answer = answer.replace("\n", "\\n")
+        answer= f"SelfExtended-{model_name}:\n     [ {answer} ]"
+        print( answer )
+        print( f"Runing Time: {end_time - start_time:.2f} sec" )
+        print( "-----------------------------------\n" )
+        break;
+    '''
     
     datasets = ["qasper"]
     results_json = []
     
     for dataset in datasets:
         torch.cuda.empty_cache()
-        data = load_dataset('THUDM/LongBench', dataset, split='test')
+        data = load_dataset('THUDM/LongBench-v2', 'default', split='train')
         
         print("---------------------------------\n")
         print(dataset)
         print("---------------------------------\n")
-
         total_score = 0
         expected_score = 0
         
         result = []
+
+        # print(data)
+
+        easy, hard, short, medium, long = 0, 0, 0, 0, 0
+        easy_acc, hard_acc, short_acc, medium_acc, long_acc = 0, 0, 0, 0, 0
         
         for trial in range(0,1):
             print("Trial", trial)
             for i in range(len(data['context'])):
-                model, tokenizer = load_model_and_tokenizer(model_name)
-                
+            #for i in range(4,10):
                 expected_score += 1
                 context = data['context'][i]
-                input_text = data['input'][i]
-                expected_answers = data["answers"][i]
-
-                prompt = gen_prompt(context, input_text, dataset)
+                question = data['question'][i]
+                #question_type = "na"
+                answer = data['answer'][i]
+                a = data['choice_A'][i]
+                b = data['choice_B'][i]
+                c = data['choice_C'][i]
+                d = data['choice_D'][i]
+                #expected_answers = data["answers"][i]
+                prompt = template.replace("$DOC$", context).replace("$Q$", question).replace("$C_A$", a).replace("$C_B$", b).replace("$C_C$", c).replace("$C_D$", d)
                 
-                max_length = 3500
-                
-                tokenized_prompt = tokenizer(prompt, return_tensors="pt").input_ids[0]
-                
-                if len(tokenized_prompt) > max_length:
-                    half = int(max_length/2)
-                    prompt = tokenizer.decode(tokenized_prompt[:half], skip_special_tokens=True)+tokenizer.decode(tokenized_prompt[-half:], skip_special_tokens=True)
-                    
-                input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids
-                
+                input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
                 with torch.no_grad():
                     # print(input_ids.shape)
-                    tokens = model.generate(input_ids, max_new_tokens=64,  num_beams=1,
-                                            do_sample=False,
-                                            temperature=1.0,
-                                            use_cache = True)
+                    tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
-                
-                score = 0
-                for expected_answer in expected_answers:
-                    score = max(score, dataset2metric[dataset](answer, expected_answer))
-                
-                print("--------------------------------------------")
-                print("Expected", expected_answers)
-                print("Answer:",answer)
-                print("Score",score)
-                total_score += score
 
-                '''print(f"Expected answer: {expected_answers}")
-                print(f"{input_text} type: {question_type}")
-                print(f"Model's answer: {answer}")
-                print(f"Score: {score}")'''
+                pred = extract_answer(answer)
+
+                if data['difficulty'][i] == 'easy':
+                    easy += 1
+                    if pred == answer:
+                        easy_acc += 0.25
+                else:
+                    if data['difficulty'][i] == 'hard':
+                        hard += 1
+                        if pred == answer:
+                            hard_acc += 0.25
                 
-                result.append({
-                    "expected_answers": expected_answers,
-                    "model_answer": answer,
-                    "score": score
-                })
+                if data['length'][i] == 'short':
+                    short += 1
+                    if pred == answer:
+                        short_acc += 0.25
+                elif data['length'][i] == 'medium':
+                    medium += 1
+                    if pred == answer:
+                        medium_acc += 0.25
+                else:
+                    long += 1
+                    if pred == answer:
+                        long_acc += 0.25
             
+        print(str(round(100*(easy_acc+hard_acc)/len(data['context']), 1))+'\t'+str(round(100*easy_acc/easy, 1))+'\t'+str(round(100*hard_acc/hard, 1))+'\t'+str(round(100*short_acc/short, 1))+'\t'+str(round(100*medium_acc/medium, 1))+'\t'+str(round(100*long_acc/long, 1)))
+        
         results_json.append({
             "test_name": dataset,
             "score": (total_score/expected_score * 100),
@@ -227,6 +275,3 @@ for model_name in model_lists:
             json.dump(results_json, json_file, indent=4)  
         
         results_json = []
-            
-
-        
