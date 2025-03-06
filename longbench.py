@@ -272,8 +272,24 @@ for model_name in model_lists:
                     if pred == answer:
                         long_acc += 0.25
             
-        print(str(round(100*(easy_acc+hard_acc)/len(data['context']), 1))+'\t'+str(round(100*easy_acc/easy, 1))+'\t'+str(round(100*hard_acc/hard, 1))+'\t'+str(round(100*short_acc/short, 1))+'\t'+str(round(100*medium_acc/medium, 1))+'\t'+str(round(100*long_acc/long, 1)))
         
+        if easy == 0:
+            easy = 1
+        if hard == 0:
+            hard = 1
+        if short == 0:
+            short = 1
+        if medium == 0:
+            medium = 1
+        if long == 0:
+            long = 1
+
+        print(f"Easy: {easy_acc/easy * 100}")
+        print(f"Hard: {hard_acc/hard * 100}")
+        print(f"Short: {short_acc/short * 100}")
+        print(f"Medium: {medium_acc/medium * 100}")
+        print(f"Long: {long_acc/long * 100}")
+
         results_json.append({
             "test_name": dataset,
             "score": (total_score/expected_score * 100),
