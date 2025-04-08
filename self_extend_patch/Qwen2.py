@@ -49,6 +49,9 @@ def apply_grouped_rotary_pos_emb(q, k, cos, sin, position_ids, device, g_size_1=
 
     position_ids_q, position_ids_k = generate_logistically_grouping_position(position_ids.shape[1], g_size_1, device=device)
     
+    position_ids_q = position_ids_q.clamp(0, cos.size(0) - 1)
+    position_ids_q = position_ids_q.clamp(0, cos.size(0) - 1)
+    
     cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
     sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]
     cos_q = cos[position_ids_q].unsqueeze(1)  # [bs, 1, seq_len, dim]

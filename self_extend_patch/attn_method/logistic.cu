@@ -60,7 +60,7 @@ __global__ void freq_group(int capacity, double rate, Group* groups) {
 }
 
 void async_generator(torch::Tensor group_query_position, torch::Tensor group_key_position, int n, int window_size, double rate, double capacity) {
-    printf("%d\n", window_size);
+    //printf("%d\n", window_size);
 	Group* groups;
 
 	cudaMallocManaged(&groups, capacity * sizeof(Group));
