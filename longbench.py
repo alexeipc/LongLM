@@ -167,6 +167,7 @@ for model_name in model_lists:
         config.sliding_window = None
         model = AutoModelForCausalLM.from_pretrained(model_name, config=config, device_map="auto", torch_dtype=torch.bfloat16, use_flash_attention_2=use_flash)
     else:
+        config = AutoConfig.from_pretrained(model_name, model_max_length=65536)
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2", device_map="auto", use_auth_token=auth_token, config=config)
 
     print("Model loaded")
