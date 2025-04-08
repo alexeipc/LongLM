@@ -164,7 +164,7 @@ for model_name in model_lists:
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2", device_map="auto", use_auth_token=auth_token)
 
     print("Model loaded")
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token, model_max_length=32768)
     print("Tokenizer loaded")
     model.eval()
     print("Finished loading")
