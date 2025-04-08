@@ -248,6 +248,8 @@ for model_name in model_lists:
                     tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
 
+                print(answer)
+
                 pred = extract_answer(answer)
 
                 if data['difficulty'][i] == 'easy':
