@@ -79,11 +79,7 @@ def apply_group_rotary_pos_emb(q, k, cos, sin, position_ids, device, unsqueeze_d
     #q_pos = position_ids//group_size_1 + group_size_2 - group_size_2//group_size_1
     #k_pos = position_ids//group_size_1 
     
-    print(group_size_2)
     q_pos, k_pos = generate_logistically_grouping_position(position_ids.shape[1], group_size_2, device=device)
-    
-    print("cos.shape:",cos.shape)
-    print("q_pos:",q_pos,"min:",q_pos.min().item(),"max:",q_pos.max().item())
     
     q_pos = q_pos.clamp(0, cos.size(0) - 1)
     k_pos = k_pos.clamp(0, cos.size(0) - 1)
