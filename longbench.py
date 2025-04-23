@@ -194,12 +194,12 @@ for model_name in model_lists:
         break;
     '''
     
-    datasets = ["qasper"]
+    datasets = ["coursera"]
     results_json = []
     
     for dataset in datasets:
         torch.cuda.empty_cache()
-        data = load_dataset('THUDM/LongBench-v2', 'default', split='train')
+        data = load_dataset('L4NLP/LEval', dataset, split='test')
         
         print("---------------------------------\n")
         print(dataset)
@@ -209,7 +209,10 @@ for model_name in model_lists:
         
         result = []
 
-        # print(data)
+        print(data)
+
+        import sys
+        sys.exit(1)
 
         easy, hard, short, medium, long = 0, 0, 0, 0, 0
         easy_acc, hard_acc, short_acc, medium_acc, long_acc = 0, 0, 0, 0, 0
