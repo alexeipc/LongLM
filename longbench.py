@@ -211,7 +211,7 @@ for model_name in model_lists:
 
         print(data)
 
-        questions = len(data.instructions)
+        questions = len(data['instructions'])
 
         correct = 0
 
