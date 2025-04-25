@@ -105,11 +105,11 @@ def rouge_score(prediction, ground_truth, **kwargs):
 
 def extract_answer(response):
     response = response.replace('*', '')
-    match = re.search(r'The correct answer is \(([A-D])\)', response)
+    match = re.search(r'The correct answer is \(([a-zA-Z0-9]+)\)', response)
     if match:
         return match.group(1)
     else:
-        match = re.search(r'The correct answer is ([A-D])', response)
+        match = re.search(r'The correct answer is ([a-zA-Z0-9]+)', response)
         if match:
             return match.group(1)
         else:
@@ -209,70 +209,37 @@ for model_name in model_lists:
         
         result = []
 
-        print(data)
+        #print(data)
 
-        import sys
-        sys.exit(1)
+        questions = len(data.instructions)
 
-        easy, hard, short, medium, long = 0, 0, 0, 0, 0
-        easy_acc, hard_acc, short_acc, medium_acc, long_acc = 0, 0, 0, 0, 0
+        correct = 0
+
+        for q in range(questions):
+            instruction = data.instructions[q]
+
+            prompt = f"Using the following document from {data.source}: {data.input}\nAnwer the following question: {data.instructions[q]}. Write 'The correct answer is (your-answer)' with your answer."
+
+            input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+            with torch.no_grad():
+                # print(input_ids.shape)
+                tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
+            answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
+
+            pred = extract_answer(answer)
+
+            if pred == data.outputs[q]:
+                correct=correct+1
+
         
-        for trial in range(0,1):
-            print("Trial", trial)
-            for i in range(len(data['context'])):
-            #for i in range(4,10):
-                expected_score += 1
-                context = data['context'][i]
-                question = data['question'][i]
-                #question_type = "na"
-                answer = data['answer'][i]
-                a = data['choice_A'][i]
-                b = data['choice_B'][i]
-                c = data['choice_C'][i]
-                d = data['choice_D'][i]
-                #expected_answers = data["answers"][i]
-                prompt = template.replace("$DOC$", context).replace("$Q$", question).replace("$C_A$", a).replace("$C_B$", b).replace("$C_C$", c).replace("$C_D$", d)
-                
-                input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
-                with torch.no_grad():
-                    # print(input_ids.shape)
-                    tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
-                answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
-
-                pred = extract_answer(answer)
-
-                if data['difficulty'][i] == 'easy':
-                    easy += 1
-                    if pred == answer:
-                        easy_acc += 0.25
-                else:
-                    if data['difficulty'][i] == 'hard':
-                        hard += 1
-                        if pred == answer:
-                            hard_acc += 0.25
-                
-                if data['length'][i] == 'short':
-                    short += 1
-                    if pred == answer:
-                        short_acc += 0.25
-                elif data['length'][i] == 'medium':
-                    medium += 1
-                    if pred == answer:
-                        medium_acc += 0.25
-                else:
-                    long += 1
-                    if pred == answer:
-                        long_acc += 0.25
-            
-        print(str(round(100*(easy_acc+hard_acc)/len(data['context']), 1))+'\t'+str(round(100*easy_acc/easy, 1))+'\t'+str(round(100*hard_acc/hard, 1))+'\t'+str(round(100*short_acc/short, 1))+'\t'+str(round(100*medium_acc/medium, 1))+'\t'+str(round(100*long_acc/long, 1)))
         
         results_json.append({
             "test_name": dataset,
-            "score": (total_score/expected_score * 100),
+            "score": (correct/questions * 100),
             "details": result 
         })
             
-        print(f"Total score: {total_score/expected_score * 100}")
+        print(f"Total score: {correct/questions * 100}")
     
         with open(f'results/result-{model_name.replace("/","-")}-{dataset}.json', 'w') as json_file:
             json.dump(results_json, json_file, indent=4)  
