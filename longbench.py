@@ -216,9 +216,9 @@ for model_name in model_lists:
         correct = 0
 
         for q in range(questions):
-            instruction = data.instructions[q]
+            instruction = data['instructions'][q]
 
-            prompt = f"Using the following document from {data.source}: {data.input}\nAnwer the following question: {data.instructions[q]}. Write 'The correct answer is (your-answer)' with your answer."
+            prompt = f"Using the following document from {data['source']}: {data['input']}\nAnwer the following question: {data['instructions'][q]}. Write 'The correct answer is (your-answer)' with your answer."
 
             input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
             with torch.no_grad():
@@ -228,7 +228,7 @@ for model_name in model_lists:
 
             pred = extract_answer(answer)
 
-            if pred == data.outputs[q]:
+            if pred == data['outputs'][q]:
                 correct=correct+1
 
         
