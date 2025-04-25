@@ -209,7 +209,7 @@ for model_name in model_lists:
         
         result = []
 
-        #print(data)
+        print(data)
 
         questions = len(data.instructions)
 
