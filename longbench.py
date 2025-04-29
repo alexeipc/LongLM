@@ -42,8 +42,6 @@ torch.cuda.memory_summary()
 
 import torch 
 import json
-import time
-from transformers.models.llama.modeling_llama import LlamaAttention
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
 
 import SelfExtend 
@@ -129,6 +127,22 @@ def gen_prompt(context, input, test_name):
     return prompt
 
 
+def load_model_and_tokenizer(model_name):
+    print("Start loading model ",model_name)
+    if 'Mistral' in model_name:
+        # Disable Mistral's sliding window
+        config = AutoConfig.from_pretrained(model_name)
+        config.sliding_window = None
+        model = AutoModelForCausalLM.from_pretrained(model_name, config=config, device_map="auto", torch_dtype=torch.bfloat16, use_flash_attention_2=use_flash)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2", device_map="auto", use_auth_token=auth_token)
+
+    print("Model loaded")
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
+    
+    print("Tokenizer loaded")
+    model.eval()
+
 '''dataset2metric = {
     "narrativeqa": qa_f1_score,
     "qasper": qa_f1_score,
@@ -164,7 +178,7 @@ for model_name in model_lists:
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, attn_implementation = "flash_attention_2", device_map="auto", use_auth_token=auth_token)
 
     print("Model loaded")
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token, model_max_length=32768)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
     print("Tokenizer loaded")
     model.eval()
     print("Finished loading")
@@ -220,7 +234,7 @@ for model_name in model_lists:
 
             prompt = f"Using the following document from {data['source']}: {data['input']}\nAnwer the following question: {data['instructions'][q]}. Write 'The correct answer is (your-answer)' with your answer."
 
-            input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+            input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids
             with torch.no_grad():
                 # print(input_ids.shape)
                 tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
