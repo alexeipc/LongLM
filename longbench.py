@@ -257,7 +257,7 @@ for model_name in model_lists:
 
                 pred = extract_answer(answer)
 
-                pred_list = pred.split("")
+                pred_list = list(pred)
 
                 print("-----------------------------------")
                 #print(f"Prompt: {prompt}")
@@ -269,7 +269,7 @@ for model_name in model_lists:
 
                 correct_ans = data['outputs'][q][instruction]
 
-                correct_ans_list = correct_ans.split("")
+                correct_ans_list = list(correct_ans)
 
 
                 # Checks answer
