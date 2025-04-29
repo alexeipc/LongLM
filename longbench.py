@@ -239,9 +239,9 @@ for model_name in model_lists:
             total_questions += questions
 
             for instruction in range(questions):
-                prompt = f"Using the following document: {data['input'][q]}\nAnwer the following question based on the document above: {data['instructions'][q][instruction]}.\nWrite 'The correct answer is (your-answer)' with your answer."
+                prompt = f"Using the following document: {data['input'][q]}\nAnwer the following question based on the document above: {data['instructions'][q][instruction]}.\nWrite 'The correct answer(s) is (your-answer)' with your answer(s)."
                 #prompt = f"{data['instructions'][q][instruction]}"
-                prompt += "Please directly give the answer without any additional output or explanation."
+                prompt += "Please directly give the answer(s) without any additional output or explanation. If there are multiple, do not put any characters or spaces between them."
                 prompt += "\nThe correct answer is "
                 #prompt = "What is your name?"
 
@@ -257,6 +257,8 @@ for model_name in model_lists:
 
                 pred = extract_answer(answer)
 
+                pred_list = pred.split("")
+
                 print("-----------------------------------")
                 #print(f"Prompt: {prompt}")
                 print(f"Question: {data['instructions'][q][instruction]}")
@@ -265,10 +267,16 @@ for model_name in model_lists:
                 print(f"Expected: {data['outputs'][q][instruction]}")
                 print("-----------------------------------")
 
-                
+                correct_ans = data['outputs'][q][instruction]
 
-                if pred == data['outputs'][q][instruction]:
-                    correct=correct+1
+                correct_ans_list = correct_ans.split("")
+
+
+                # Checks answer
+                if sorted(pred_list) == sorted(correct_ans_list):
+                    correct+=1
+
+                
 
                 #import sys
                 #sys.exit(0)
