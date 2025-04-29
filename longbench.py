@@ -225,27 +225,34 @@ for model_name in model_lists:
 
         print(data)
 
-        questions = len(data['instructions'])
+        rounds = len(data['instructions'])
 
         correct = 0
 
-        for q in range(questions):
-            instruction = data['instructions'][q]
+        for q in range(rounds):
+            instructions = data['instructions'][q]
 
-            print(instruction)
+            questions = len(instructions)
 
-            prompt = f"Using the following document from {data['source']}: {data['input']}\nAnwer the following question: {data['instructions'][q]}. Write 'The correct answer is (your-answer)' with your answer."
+            for instruction in range(questions):
+                prompt = f"Using the following document: {data['input'][q]}\nAnwer the following question: {data['instructions'][q][instruction]}. Write 'The correct answer is (your-answer)' with your answer."
 
-            input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids
-            with torch.no_grad():
-                # print(input_ids.shape)
-                tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
-            answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
+                input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids
+                with torch.no_grad():
+                    # print(input_ids.shape)
+                    tokens = model.generate(input_ids, max_new_tokens=128, use_cache = True)
+                answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
 
-            pred = extract_answer(answer)
+                print("-----------------------------------")
+                print(f"Question: {data['instructions'][q][instruction]}")
+                print(f"Answer: {answer}")
+                print(f"Expected: {data['outputs'][q][instruction]}")
+                print("-----------------------------------")
 
-            if pred == data['outputs'][q]:
-                correct=correct+1
+                pred = extract_answer(answer)
+
+                if pred == data['outputs'][q][instruction]:
+                    correct=correct+1
 
         
         
