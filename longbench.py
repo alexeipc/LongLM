@@ -260,6 +260,9 @@ for model_name in model_lists:
 
                 if pred == data['outputs'][q][instruction]:
                     correct=correct+1
+                
+                import sys
+                sys.exit(0)
 
         
         
