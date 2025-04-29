@@ -232,6 +232,8 @@ for model_name in model_lists:
         for q in range(questions):
             instruction = data['instructions'][q]
 
+            print(instruction)
+
             prompt = f"Using the following document from {data['source']}: {data['input']}\nAnwer the following question: {data['instructions'][q]}. Write 'The correct answer is (your-answer)' with your answer."
 
             input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids
