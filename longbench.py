@@ -229,10 +229,14 @@ for model_name in model_lists:
 
         correct = 0
 
+        total_questions = 0
+
         for q in range(rounds):
             instructions = data['instructions'][q]
 
             questions = len(instructions)
+
+            total_questions += questions
 
             for instruction in range(questions):
                 prompt = f"Using the following document: {data['input'][q]}\nAnwer the following question: {data['instructions'][q][instruction]}. Write 'The correct answer is (your-answer)' with your answer."
@@ -258,11 +262,11 @@ for model_name in model_lists:
         
         results_json.append({
             "test_name": dataset,
-            "score": (correct/questions * 100),
+            "score": (correct/total_questions * 100),
             "details": result 
         })
             
-        print(f"Total score: {correct/questions * 100}")
+        print(f"Total score: {correct/total_questions * 100}")
     
         with open(f'results/result-{model_name.replace("/","-")}-{dataset}.json', 'w') as json_file:
             json.dump(results_json, json_file, indent=4)  
