@@ -252,13 +252,13 @@ for model_name in model_lists:
                                             do_sample=False,
                                             temperature=1.0,
                                             use_cache = True)
-                     print(tokens)
+                     #print(tokens)
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
 
                 pred = extract_answer(answer)
 
                 print("-----------------------------------")
-                print(f"Prompt: {prompt}")
+                #print(f"Prompt: {prompt}")
                 print(f"Question: {data['instructions'][q][instruction]}")
                 print(f"Answer: {answer}")
                 print(f"Pred: {pred}")
@@ -270,8 +270,8 @@ for model_name in model_lists:
                 if pred == data['outputs'][q][instruction]:
                     correct=correct+1
 
-                import sys
-                sys.exit(0)
+                #import sys
+                #sys.exit(0)
 
 
 
