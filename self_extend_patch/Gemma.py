@@ -7,6 +7,8 @@ import math
 from typing import Optional, Tuple
 
 from .selfextend_flash_attn import self_extend_flash_forward
+from .attn_method import generate_sequentially_grouping_position, generate_exponentially_grouping_position, generate_logistically_grouping_position
+
 
 from transformers.utils import is_flash_attn_2_available
 if is_flash_attn_2_available():
@@ -119,7 +121,15 @@ def flash_self_extend_forward(
     if q_len == 1:
         neighbor_key_position = position_ids[:, -1] - key_position
         _re_group_size_2 = 0 if position_ids.max() < group_size_2 else group_size_2
-        group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
+        
+        #device = value_states.device
+        #group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2, device=device, qlen_1 = True)
+        
+        #group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
+        
+        device = value_states.device
+        group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2, device=device, qlen_1 = True)
+        
         decode_key_position = torch.cat([group_key_position[:, :-group_size_2], neighbor_key_position[:,-group_size_2:]], dim=1)
         
         decode_k_cos, decode_k_sin = self.rotary_emb(value_states, decode_key_position, seq_len=None)
@@ -141,8 +151,16 @@ def flash_self_extend_forward(
 
 
         _re_group_size_2 = 0 if query_position.max() < group_size_2 else group_size_2 # in case that, the smallest q position, g2-g2//g1 exceed the max position
-        group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 / group_size_1
-        group_key_position = key_position // group_size_1
+        
+        device = value_states.device
+        group_query_position, group_key_position = generate_logistically_grouping_position(query_position.shape[1], group_size_2, device=device)
+        
+        #group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 / group_size_1
+        #group_key_position = key_position // group_size_1
+        
+        #device = value_states.device
+        #group_query_position, group_key_position = generate_logistically_grouping_position(query_position.shape[1], group_size_2, device=device)
+
 
         group_q_cos, group_q_sin = self.rotary_emb(value_states, group_query_position, seq_len=None)
         group_k_cos, group_k_sin = self.rotary_emb(value_states, group_key_position, seq_len=None)
