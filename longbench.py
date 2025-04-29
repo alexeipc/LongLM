@@ -244,10 +244,7 @@ for model_name in model_lists:
                 input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids
                 with torch.no_grad():
                     # print(input_ids.shape)
-                     tokens = model.generate(input_ids, max_new_tokens=64,  num_beams=1,
-                                            do_sample=False,
-                                            temperature=1.0,
-                                            use_cache = True)
+                     tokens = model.generate(input_ids, max_new_tokens=64)
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
 
                 print("-----------------------------------")
