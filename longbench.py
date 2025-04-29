@@ -40,11 +40,11 @@ parser.add_argument("--auth_token", type=str, required=True, help="Hugging Face 
 args = parser.parse_args()
 torch.cuda.memory_summary()
 
-import torch 
+import torch
 import json
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
 
-import SelfExtend 
+import SelfExtend
 
 print('t')
 
@@ -103,11 +103,11 @@ def rouge_score(prediction, ground_truth, **kwargs):
 
 def extract_answer(response):
     response = response.replace('*', '')
-    match = re.search(r'The correct answer is \(([a-zA-Z0-9]+)\)', response)
+    match = re.search(r'\(([a-zA-Z0-9]+)\)', response)
     if match:
         return match.group(1)
     else:
-        match = re.search(r'The correct answer is ([a-zA-Z0-9]+)', response)
+        match = re.search(r'([a-zA-Z0-9]+)', response) # Matches first word or number in the response
         if match:
             return match.group(1)
         else:
@@ -139,7 +139,7 @@ def load_model_and_tokenizer(model_name):
 
     print("Model loaded")
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
-    
+
     print("Tokenizer loaded")
     model.eval()
 
@@ -183,7 +183,7 @@ for model_name in model_lists:
     model.eval()
     print("Finished loading")
     file_name = "passkey_examples.jsonl"
-    
+
     print("=========="*2 + "**SelfExtend using flash_attn**" + "=========="*2)
     SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
     # model = model.cuda()
@@ -207,20 +207,20 @@ for model_name in model_lists:
         print( "-----------------------------------\n" )
         break;
     '''
-    
+
     datasets = ["coursera"]
     results_json = []
-    
+
     for dataset in datasets:
         torch.cuda.empty_cache()
         data = load_dataset('L4NLP/LEval', dataset, split='test')
-        
+
         print("---------------------------------\n")
         print(dataset)
         print("---------------------------------\n")
         total_score = 0
         expected_score = 0
-        
+
         result = []
 
         print(data)
@@ -239,40 +239,51 @@ for model_name in model_lists:
             total_questions += questions
 
             for instruction in range(questions):
-                prompt = f"Using the following document: {data['input'][q]}\nAnwer the following question: {data['instructions'][q][instruction]}. Write 'The correct answer is (your-answer)' with your answer."
+                prompt = f"Using the following document: {data['input'][q]}\nAnwer the following question based on the document above: {data['instructions'][q][instruction]}.\nWrite 'The correct answer is (your-answer)' with your answer."
+                #prompt = f"{data['instructions'][q][instruction]}"
+                prompt += "Please directly give the answer without any additional output or explanation."
+                prompt += "\nThe correct answer is "
+                #prompt = "What is your name?"
 
                 input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids
                 with torch.no_grad():
                     # print(input_ids.shape)
-                     tokens = model.generate(input_ids, max_new_tokens=64)
+                     tokens = model.generate(input_ids, max_new_tokens=1000, num_beams=1,
+                                            do_sample=False,
+                                            temperature=1.0,
+                                            use_cache = True)
+                     print(tokens)
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
-
-                print("-----------------------------------")
-                [print(f"Prompt: {prompt}")]
-                print(f"Question: {data['instructions'][q][instruction]}")
-                print(f"Answer: {answer}")
-                print(f"Expected: {data['outputs'][q][instruction]}")
-                print("-----------------------------------")
 
                 pred = extract_answer(answer)
 
+                print("-----------------------------------")
+                print(f"Prompt: {prompt}")
+                print(f"Question: {data['instructions'][q][instruction]}")
+                print(f"Answer: {answer}")
+                print(f"Pred: {pred}")
+                print(f"Expected: {data['outputs'][q][instruction]}")
+                print("-----------------------------------")
+
+                
+
                 if pred == data['outputs'][q][instruction]:
                     correct=correct+1
-                
+
                 import sys
                 sys.exit(0)
 
-        
-        
+
+
         results_json.append({
             "test_name": dataset,
             "score": (correct/total_questions * 100),
-            "details": result 
+            "details": result
         })
-            
+
         print(f"Total score: {correct/total_questions * 100}")
-    
+
         with open(f'results/result-{model_name.replace("/","-")}-{dataset}.json', 'w') as json_file:
-            json.dump(results_json, json_file, indent=4)  
-        
+            json.dump(results_json, json_file, indent=4)
+
         results_json = []
