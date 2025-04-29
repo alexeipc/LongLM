@@ -251,6 +251,7 @@ for model_name in model_lists:
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
 
                 print("-----------------------------------")
+                [print(f"Prompt: {prompt}")]
                 print(f"Question: {data['instructions'][q][instruction]}")
                 print(f"Answer: {answer}")
                 print(f"Expected: {data['outputs'][q][instruction]}")
