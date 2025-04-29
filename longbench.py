@@ -100,18 +100,95 @@ def rouge_score(prediction, ground_truth, **kwargs):
         return 0.0
     return scores["rouge-l"]["f"]
 
+import re
+import string
+from collections import Counter
+
+
+def normalize_answer(s):
+    """Lower text and remove punctuation, articles and extra whitespace."""
+
+    def remove_articles(text):
+        return re.sub(r"\b(a|an|the)\b", " ", text)
+
+    def white_space_fix(text):
+        return " ".join(text.split())
+
+    def remove_punc(text):
+        exclude = set(string.punctuation)
+        return "".join(ch for ch in text if ch not in exclude)
+
+    def lower(text):
+        return text.lower()
+
+    return white_space_fix(remove_articles(remove_punc(lower(s))))
+
+
+def f1_score(prediction, ground_truth):
+    prediction_tokens = normalize_answer(prediction).split()
+    ground_truth_tokens = normalize_answer(ground_truth).split()
+    common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
+    num_same = sum(common.values())
+    if num_same == 0:
+        return 0
+    precision = 1.0 * num_same / len(prediction_tokens)
+    recall = 1.0 * num_same / len(ground_truth_tokens)
+    f1 = (2 * precision * recall) / (precision + recall)
+    return f1
+
+
+def metric_max_over_ground_truths(metric_fn, prediction, ground_truths):
+    scores_for_ground_truths = []
+    for ground_truth in ground_truths:
+        score = metric_fn(prediction, ground_truth)
+        scores_for_ground_truths.append(score)
+    return max(scores_for_ground_truths)
+
+
+def compute_f1(predictions, references):
+    f1 = 0
+    for prediction, ground_truths in zip(predictions, references):
+        f1 += metric_max_over_ground_truths(f1_score, prediction, ground_truths)
+    return 100.0 * f1 / len(predictions)
+
 
 def extract_answer(response):
-    response = response.replace('*', '')
-    match = re.search(r'\(([a-zA-Z0-9]+)\)', response)
-    if match:
-        return match.group(1)
-    else:
-        match = re.search(r'([a-zA-Z0-9]+)', response) # Matches first word or number in the response
-        if match:
-            return match.group(1)
+    # Use regular expression to replace anything that is not A, B, C or D with an empty string
+    if len(response.strip()) == 0:
+        return "None"
+    if response in "ABCD":
+        return response
+
+    cleaned_str = ""
+    for chr in response:
+        if chr in "ABCD":
+            cleaned_str += chr
+            response = response[1:]
         else:
-            return None
+            break
+
+    if len(cleaned_str) > 1:
+        return ''.join(sorted(set(cleaned_str)))
+    # retrieve multiple correct answers (for coursera)
+    response = response.split("Question")[0]
+    pattern = r"\s*[A-Z](?=[\s.)])"
+    options = re.findall(pattern, response)
+    cleaned_str += ' '.join(options).strip()
+    cleaned_str = re.sub(r'[^A-D]', '', cleaned_str)
+    s_set = set(cleaned_str)
+    cleaned_str = "".join(sorted(s_set))
+    if len(cleaned_str) < 1:  
+        has_answer = False
+        for chr in response:
+            if chr in "ABCD":
+                cleaned_str += chr
+                response = response[1:]
+                has_answer = True
+            elif has_answer:
+                break
+    if len(cleaned_str) < 1:  
+        cleaned_str = "A"
+    return cleaned_str
 
 def gen_prompt(context, input, test_name):
     prompts = {
@@ -231,6 +308,10 @@ for model_name in model_lists:
 
         total_questions = 0
 
+        answers_total = list()
+
+        truth_total = list()
+
         for q in range(rounds):
             instructions = data['instructions'][q]
 
@@ -257,7 +338,7 @@ for model_name in model_lists:
 
                 pred = extract_answer(answer)
 
-                pred_list = list(pred)
+                pred_list = ' '.join(list(pred))
 
                 print("-----------------------------------")
                 #print(f"Prompt: {prompt}")
@@ -269,27 +350,22 @@ for model_name in model_lists:
 
                 correct_ans = data['outputs'][q][instruction]
 
-                correct_ans_list = list(correct_ans)
+                correct_ans_list = ' '.join(list(correct_ans))
 
+                answers_total.append(pred_list)
 
-                # Checks answer
-                if sorted(pred_list) == sorted(correct_ans_list):
-                    correct+=1
+                truth_total.append(correct_ans_list)
 
-                
-
-                #import sys
-                #sys.exit(0)
-
-
+        score = f1_score(answers_total, truth_total)
+        print(f"F1 score: {score}")
 
         results_json.append({
             "test_name": dataset,
-            "score": (correct/total_questions * 100),
+            "score": score,
             "details": result
         })
 
-        print(f"Total score: {correct/total_questions * 100}")
+        print(f"Total score: {score}")
 
         with open(f'results/result-{model_name.replace("/","-")}-{dataset}.json', 'w') as json_file:
             json.dump(results_json, json_file, indent=4)
