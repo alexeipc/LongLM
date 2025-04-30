@@ -53,7 +53,7 @@ group_size = 32
 use_flash = True
 
 # model_lists = ['google/gemma-7b-it', 'meta-llama/Llama-2-7b-chat-hf', 'mistralai/Mistral-7B-Instruct-v0.1', ]
-model_lists = ['meta-llama/Llama-2-7b-chat-hf']
+model_lists = ['meta-llama/Llama-2-13b-chat-hf']
 auth_token = args.auth_token
 
 
@@ -142,6 +142,32 @@ def extract_answer(response):
     if len(cleaned_str) < 1:  
         cleaned_str = "A"
     return cleaned_str
+
+def process_math(response):
+    match = re.search(r'The answer is (\S+)', response)
+    if not match:
+        response = response.split('\n\n')[0]
+        response = response.split(' ')[::-1]
+        flag = False
+        ret = ''
+        for i in range(len(response)):
+            s = response[i]
+            for i in range(len(s)):
+                if s[i].isdigit():
+                    flag = True
+                    ret = s
+                    break
+            if flag:
+                break
+    else:
+        ret = match.group(1)
+    ret1 = ''
+    for i in range(len(ret)):
+        if ret[i].isdigit():
+            ret1 += ret[i]
+        if ret[i] == ".":
+            break
+    return ret1
 
 def gen_prompt(context, input, test_name):
     prompts = {
