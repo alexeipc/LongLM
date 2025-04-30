@@ -318,7 +318,7 @@ def flash_self_extend_forward(
         device = value_states.device
         group_query_position, group_key_position = generate_logistically_grouping_position(query_position.shape[1], group_size_2, device=device)
         
-        '''
+        
         print("Query position:",query_position)
         print(query_position.shape)
         print("Key position:",key_position)
@@ -327,7 +327,7 @@ def flash_self_extend_forward(
         print(group_query_position.shape)
         print("Group key position:",group_key_position)
         print(group_key_position.shape)
-        '''
+        
         
         # Query's number of token = Key's number of token
 
