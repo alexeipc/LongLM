@@ -56,54 +56,6 @@ use_flash = True
 model_lists = ['meta-llama/Llama-2-7b-chat-hf']
 auth_token = args.auth_token
 
-def normalize_answer(s):
-    """Lower text and remove punctuation, articles and extra whitespace."""
-
-    def remove_articles(text):
-        return re.sub(r"\b(a|an|the)\b", " ", text)
-
-    def white_space_fix(text):
-        return " ".join(text.split())
-
-    def remove_punc(text):
-        exclude = set(string.punctuation)
-        return "".join(ch for ch in text if ch not in exclude)
-
-    def lower(text):
-        return text.lower()
-
-    return white_space_fix(remove_articles(remove_punc(lower(s))))
-
-def f1_score(prediction, ground_truth, **kwargs):
-    common = Counter(prediction) & Counter(ground_truth)
-    num_same = sum(common.values())
-    if num_same == 0:
-        return 0
-    precision = 1.0 * num_same / len(prediction)
-    recall = 1.0 * num_same / len(ground_truth)
-    f1 = (2 * precision * recall) / (precision + recall)
-    return f1
-
-def qa_f1_score(prediction, ground_truth, type):
-    normalized_prediction = normalize_answer(prediction)
-    normalized_ground_truth = normalize_answer(ground_truth)
-
-    prediction_tokens = normalized_prediction.split()
-    ground_truth_tokens = normalized_ground_truth.split()
-    return f1_score(prediction_tokens, ground_truth_tokens)
-
-def rouge_score(prediction, ground_truth, **kwargs):
-    rouge = Rouge()
-    try:
-        scores = rouge.get_scores([prediction], [ground_truth], avg=True)
-    except:
-        return 0.0
-    return scores["rouge-l"]["f"]
-
-import re
-import string
-from collections import Counter
-
 
 def normalize_answer(s):
     """Lower text and remove punctuation, articles and extra whitespace."""
@@ -148,7 +100,8 @@ def metric_max_over_ground_truths(metric_fn, prediction, ground_truths):
 def compute_f1(predictions, references):
     f1 = 0
     for prediction, ground_truths in zip(predictions, references):
-        f1 += metric_max_over_ground_truths(f1_score, prediction, ground_truths)
+        #f1 += metric_max_over_ground_truths(f1_score, prediction, ground_truths)
+        f1 += f1_score(prediction, ground_truths)
     return 100.0 * f1 / len(predictions)
 
 
@@ -356,7 +309,7 @@ for model_name in model_lists:
 
                 truth_total.append(correct_ans_list)
 
-        score = f1_score(answers_total, truth_total)
+        score = compute_f1(answers_total, truth_total)
         print(f"F1 score: {score}")
 
         results_json.append({
