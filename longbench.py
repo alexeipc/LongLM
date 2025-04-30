@@ -242,7 +242,7 @@ for model_name in model_lists:
 
     print("=========="*2 + "**SelfExtend using flash_attn**" + "=========="*2)
     SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
-    # model = model.cuda()
+    model = model.cuda()
     '''
     for line in open(file_name, "r"):
         example = json.loads(line)
@@ -305,7 +305,7 @@ for model_name in model_lists:
                 prompt += "\nThe correct answer is "
                 #prompt = "What is your name?"
 
-                input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids
+                input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids.cuda()
                 with torch.no_grad():
                     # print(input_ids.shape)
                      tokens = model.generate(input_ids, max_new_tokens=1000, num_beams=1,
