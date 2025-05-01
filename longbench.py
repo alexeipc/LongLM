@@ -317,15 +317,15 @@ for model_name in model_lists:
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
                 
 
-                # pred = extract_answer(answer)
-                pred = 'A'
+                pred = extract_answer(answer)
+                # pred = 'A'
 
                 pred_list = ' '.join(list(pred))
 
                 print("-----------------------------------")
-                #print(f"Prompt: {prompt}")
+                print(f"Prompt: {prompt}")
                 print(f"Question: {data['instructions'][q][instruction]}")
-                #print(f"Answer: {answer}")
+                print(f"Answer: {answer}")
                 print(f"Pred: {pred}")
                 print(f"Expected: {data['outputs'][q][instruction]}")
                 print("-----------------------------------")
