@@ -53,7 +53,7 @@ group_size = 32
 use_flash = True
 
 # model_lists = ['google/gemma-7b-it', 'meta-llama/Llama-2-7b-chat-hf', 'mistralai/Mistral-7B-Instruct-v0.1', ]
-model_lists = ['meta-llama/Llama-2-13b-chat-hf']
+model_lists = ['mistralai/Mistral-7B-Instruct-v0.1']
 auth_token = args.auth_token
 
 
