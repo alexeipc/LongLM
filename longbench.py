@@ -73,7 +73,7 @@ def normalize_answer(s):
     def lower(text):
         return text.lower()
 
-    return white_space_fix(remove_articles(remove_punc(lower(s))))
+    return white_space_fix(remove_articles(remove_punc(s)))
 
 
 def f1_score(prediction, ground_truth):
