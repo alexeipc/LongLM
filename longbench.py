@@ -305,6 +305,7 @@ for model_name in model_lists:
                 prompt += "\nThe correct answer is "
                 #prompt = "What is your name?"
 
+                '''
                 input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids.cuda()
                 with torch.no_grad():
                     # print(input_ids.shape)
@@ -314,15 +315,17 @@ for model_name in model_lists:
                                             use_cache = True)
                      #print(tokens)
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
+                '''
 
-                pred = extract_answer(answer)
+                # pred = extract_answer(answer)
+                pred = 'A'
 
                 pred_list = ' '.join(list(pred))
 
                 print("-----------------------------------")
                 #print(f"Prompt: {prompt}")
                 print(f"Question: {data['instructions'][q][instruction]}")
-                print(f"Answer: {answer}")
+                #print(f"Answer: {answer}")
                 print(f"Pred: {pred}")
                 print(f"Expected: {data['outputs'][q][instruction]}")
                 print("-----------------------------------")
