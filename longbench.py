@@ -241,7 +241,7 @@ for model_name in model_lists:
     file_name = "passkey_examples.jsonl"
 
     print("=========="*2 + "**SelfExtend using flash_attn**" + "=========="*2)
-    #SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
+    SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
     model = model.cuda()
     '''
     for line in open(file_name, "r"):
