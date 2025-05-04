@@ -325,7 +325,7 @@ for model_name in model_lists:
             total_questions += questions
 
             for instruction in range(questions):
-                prompt = f"{data['input'][q]}\n{data['instructions'][q][instruction]}"
+                prompt = f"{data['instructions'][q][instruction]}"
 
                 input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids.cuda()
                 with torch.no_grad():
