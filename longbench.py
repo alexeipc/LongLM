@@ -290,7 +290,7 @@ for model_name in model_lists:
         break;
     '''
 
-    datasets = ["gsm100"]
+    datasets = ["coursera"]
     results_json = []
 
     for dataset in datasets:
@@ -313,7 +313,7 @@ for model_name in model_lists:
 
         total_questions = 0
 
-        answer_total = list()
+        answers_total = list()
 
         truth_total = list()
 
@@ -325,7 +325,10 @@ for model_name in model_lists:
             total_questions += questions
 
             for instruction in range(questions):
-                prompt = f"{data['input'][q]}\n{data['instructions'][q][instruction]}"
+                prompt = f"Using the following document: {data['input'][q]}\nAnwer the following question based on the document above: {data['instructions'][q][instruction]}.\nWrite 'The correct answer(s) is (your-answer)' with your answer(s)."
+                #prompt = f"{data['instructions'][q][instruction]}"
+                prompt += "Please directly give the answer(s) without any additional output or explanation. If there are multiple, do not put any characters or spaces between them."
+                prompt += "\nThe correct answer is "
 
                 input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids.cuda()
                 with torch.no_grad():
@@ -338,7 +341,10 @@ for model_name in model_lists:
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
                 
 
-                pred = process_math(answer)
+                pred = extract_answer(answer)
+                # pred = 'A'
+
+                pred_list = ' '.join(list(pred))
 
                 print("-----------------------------------")
                 #print(f"Prompt: {prompt}") # very long
@@ -350,15 +356,15 @@ for model_name in model_lists:
 
                 correct_ans = data['outputs'][q][instruction]
 
-                if pred == correct_ans:
-                    correct += 1
+                correct_ans_list = ' '.join(list(correct_ans))
 
-                answer_total.append(pred)
-                truth_total.append(correct_ans)
+                answers_total.append(pred_list)
+
+                truth_total.append(correct_ans_list)
 
                 
 
-        score = compute_f1(answer_total, truth_total)
+        score = compute_f1(answers_total, truth_total)
         print(f"Correct: {correct}")
 
         results_json.append({
