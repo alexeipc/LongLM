@@ -313,6 +313,10 @@ for model_name in model_lists:
 
         total_questions = 0
 
+        answer_total = list()
+
+        truth_total = list()
+
         for q in range(rounds):
             instructions = data['instructions'][q]
 
@@ -337,7 +341,7 @@ for model_name in model_lists:
                 pred = process_math(answer)
 
                 print("-----------------------------------")
-                print(f"Prompt: {prompt}")
+                #print(f"Prompt: {prompt}") # very long
                 print(f"Question: {data['instructions'][q][instruction]}")
                 print(f"Answer: {answer}")
                 print(f"Pred: {pred}")
@@ -346,10 +350,15 @@ for model_name in model_lists:
 
                 correct_ans = data['outputs'][q][instruction]
 
-                if correct_ans == pred:
+                if pred == correct_ans:
                     correct += 1
 
-        score = correct / total_questions * 100
+                answer_total.append(pred)
+                truth_total.append(correct_ans)
+
+                
+
+        score = compute_f1(answer_total, truth_total)
         print(f"Correct: {correct}")
 
         results_json.append({
