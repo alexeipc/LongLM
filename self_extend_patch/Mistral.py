@@ -62,16 +62,16 @@ def apply_grouped_rotary_pos_emb(q, k, cos, sin, position_ids, g_size_1=1, g_siz
 
 def apply_grouped_rotary_pos_emb(q, k, cos, sin, position_ids, device, g_size_1=1, g_size_2=4096):
     # The first two dimensions of cos and sin are always 1, so we can `squeeze` them.
-    position_ids_q = position_ids//g_size_1 + g_size_2 - g_size_2//g_size_1
-    position_ids_k = position_ids//g_size_1
+    # position_ids_q = position_ids//g_size_1 + g_size_2 - g_size_2//g_size_1
+    # position_ids_k = position_ids//g_size_1
     
-    #position_ids_q, position_ids_k = generate_logistically_grouping_position(position_ids.shape[1], g_size_2, device=device)
+    position_ids_q, position_ids_k = generate_logistically_grouping_position(position_ids.shape[1], g_size_2, device=device)
 
     cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
     sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]
     
-    #position_ids_q = position_ids_q.clamp(0, cos.size(0) - 1)
-    #position_ids_k = position_ids_k.clamp(0, cos.size(0) - 1)
+    position_ids_q = position_ids_q.clamp(0, cos.size(0) - 1)
+    position_ids_k = position_ids_k.clamp(0, cos.size(0) - 1)
     
     cos_q = cos[position_ids_q].unsqueeze(1)  # [bs, 1, seq_len, dim]
     sin_q = sin[position_ids_q].unsqueeze(1)  # [bs, 1, seq_len, dim]
@@ -264,11 +264,11 @@ def flash_self_extend_forward(
         neighbor_key_position = position_ids[:, -1] - key_position
 
 
-        group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 // group_size_1
-        group_key_position = key_position // group_size_1
+        # group_query_position = query_position // group_size_1 + _re_group_size_2 - _re_group_size_2 // group_size_1
+        # group_key_position = key_position // group_size_1
         
-        #device = value_states.device
-        #group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2, device=device, qlen_1 = True)
+        device = value_states.device
+        group_key_position = generate_logistically_grouping_position(key_position.shape[1], group_size_2, device=device, qlen_1 = True)
 
         # group_key_position = position_ids[:, -1]//group_size_1 - key_position//group_size_1 + (_re_group_size_2 - _re_group_size_2//group_size_1)
         decode_key_position = torch.cat([group_key_position[:, :-group_size_2], neighbor_key_position[:,-group_size_2:]], dim=1)
