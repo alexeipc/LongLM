@@ -56,6 +56,32 @@ use_flash = True
 model_lists = ['mistralai/Mistral-7B-Instruct-v0.3']
 auth_token = args.auth_token
 
+def process_math(response):
+    match = re.search(r'The answer is (\S+)', response)
+    if not match:
+        response = response.split('\n\n')[0]
+        response = response.split(' ')[::-1]
+        flag = False
+        ret = ''
+        for i in range(len(response)):
+            s = response[i]
+            for i in range(len(s)):
+                if s[i].isdigit():
+                    flag = True
+                    ret = s
+                    break
+            if flag:
+                break
+    else:
+        ret = match.group(1)
+    ret1 = ''
+    for i in range(len(ret)):
+        if ret[i].isdigit():
+            ret1 += ret[i]
+        if ret[i] == ".":
+            break
+    return ret1
+
 
 def normalize_answer(s):
     """Lower text and remove punctuation, articles and extra whitespace."""
