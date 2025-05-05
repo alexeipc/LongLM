@@ -53,7 +53,7 @@ group_size = 32
 use_flash = True
 
 # model_lists = ['google/gemma-7b-it', 'meta-llama/Llama-2-7b-chat-hf', 'mistralai/Mistral-7B-Instruct-v0.1', ]
-model_lists = ['mistralai/Mistral-7B-Instruct-v0.3']
+model_lists = ['meta-llama/Llama-2-7b-chat-hf']
 auth_token = args.auth_token
 
 def process_math(response):
@@ -267,7 +267,7 @@ for model_name in model_lists:
     file_name = "passkey_examples.jsonl"
 
     print("=========="*2 + "**SelfExtend using flash_attn**" + "=========="*2)
-    SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
+    # SelfExtend.apply(model, group_size, window_size, enable_flash_attention=use_flash, flash_attention_impl="flash_attn") ## flash_attention_impl="triton" or "flash_attn"
     model = model.cuda()
     '''
     for line in open(file_name, "r"):
@@ -290,7 +290,7 @@ for model_name in model_lists:
         break;
     '''
 
-    datasets = ["coursera"]
+    datasets = ["gsm100"]
     results_json = []
 
     for dataset in datasets:
@@ -325,10 +325,13 @@ for model_name in model_lists:
             total_questions += questions
 
             for instruction in range(questions):
-                prompt = f"Using the following document: {data['input'][q]}\nAnwer the following question based on the document above: {data['instructions'][q][instruction]}.\nWrite 'The correct answer(s) is (your-answer)' with your answer(s)."
-                #prompt = f"{data['instructions'][q][instruction]}"
-                prompt += "Please directly give the answer(s) without any additional output or explanation. If there are multiple, do not put any characters or spaces between them."
-                prompt += "\nThe correct answer is "
+                if dataset == "coursera":
+                    prompt = f"Using the following document: {data['input'][q]}\nAnwer the following question based on the document above: {data['instructions'][q][instruction]}.\nWrite 'The correct answer(s) is (your-answer)' with your answer(s)."
+                    #prompt = f"{data['instructions'][q][instruction]}"
+                    prompt += "Please directly give the answer(s) without any additional output or explanation. If there are multiple, do not put any characters or spaces between them."
+                    prompt += "\nThe correct answer is "
+                else:
+                    prompt = f"{data['input'][q]}\n{data['instructions'][q][instruction]}"
 
                 input_ids = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids.cuda()
                 with torch.no_grad():
@@ -341,10 +344,17 @@ for model_name in model_lists:
                 answer = tokenizer.decode(tokens[0].tolist()[input_ids.shape[1]:], skip_special_tokens=True)
                 
 
-                pred = extract_answer(answer)
+                if dataset == "coursera":
+                    pred = extract_answer(answer)
+                else:
+                    pred = process_math(answer)
                 # pred = 'A'
 
-                pred_list = ' '.join(list(pred))
+                if dataset == "coursera":
+                    pred_list = ' '.join(list(pred))
+                else:
+                    pred_list = ''.join(list(pred))
+
 
                 print("-----------------------------------")
                 #print(f"Prompt: {prompt}") # very long
@@ -356,7 +366,10 @@ for model_name in model_lists:
 
                 correct_ans = data['outputs'][q][instruction]
 
-                correct_ans_list = ' '.join(list(correct_ans))
+                if dataset == "coursera":
+                    correct_ans_list = ' '.join(list(correct_ans))
+                else:
+                    correct_ans_list = ''.join(list(correct_ans))
 
                 answers_total.append(pred_list)
 
